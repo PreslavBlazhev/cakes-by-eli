@@ -253,6 +253,74 @@ async function seedDessertTypes(
   return bySlug;
 }
 
+/**
+ * Adds options the code has introduced since the group was created.
+ *
+ * Only groups the code explicitly marks `extensible` are considered — a
+ * catalogue of decorations is meant to grow, a set of cake shapes is not. An
+ * option is matched by key, so one the owner has *deactivated* stays
+ * deactivated; only a hard-deleted standard option would come back.
+ */
+async function backfillOptions(
+  typeId: string,
+  type: (typeof DESSERT_TYPES)[number],
+  presentGroups: Set<string>,
+): Promise<number> {
+  const extensible = type.groups.filter(
+    (group) => group.extensible && presentGroups.has(group.key) && group.options?.length,
+  );
+  if (extensible.length === 0) return 0;
+
+  const rows = await db
+    .select({
+      id: customizationGroups.id,
+      key: customizationGroups.key,
+    })
+    .from(customizationGroups)
+    .where(eq(customizationGroups.dessertTypeId, typeId));
+  const groupIdByKey = new Map(rows.map((r) => [r.key, r.id]));
+
+  let added = 0;
+
+  for (const group of extensible) {
+    const groupId = groupIdByKey.get(group.key);
+    if (!groupId) continue;
+
+    const existing = await db
+      .select({ key: customizationOptions.key, sortOrder: customizationOptions.sortOrder })
+      .from(customizationOptions)
+      .where(eq(customizationOptions.groupId, groupId));
+
+    const have = new Set(existing.map((o) => o.key));
+    const missing = (group.options ?? []).filter((o) => !have.has(o.key));
+    if (missing.length === 0) continue;
+
+    // New options go after whatever is already there, so the owner's own
+    // ordering survives.
+    let nextSort =
+      existing.reduce((max, o) => Math.max(max, o.sortOrder), -1) + 1;
+
+    await db.insert(customizationOptions).values(
+      missing.map((option) => ({
+        groupId,
+        key: option.key,
+        label: option.label,
+        description: option.description ?? "",
+        priceModifierCents: withDemoPrices ? (option.demoPriceCents ?? null) : null,
+        previewValue: option.previewValue ?? "",
+        swatchColor: option.swatchColor ?? null,
+        sortOrder: nextSort++,
+      })),
+    );
+
+    config.options += missing.length;
+    added += missing.length;
+    log(`  ${type.slug}/${group.key}: added ${missing.length} option(s)`);
+  }
+
+  return added;
+}
+
 /** Writes one group and its options. Shared by the full and partial paths. */
 async function insertGroup(
   typeId: string,
@@ -321,7 +389,9 @@ async function backfillGroups(
   const known = new Set(existingGroups.map((g) => g.key));
   const missing = type.groups.filter((group) => !known.has(group.key));
 
-  if (missing.length === 0) return 0;
+  const addedOptions = await backfillOptions(typeId, type, known);
+
+  if (missing.length === 0) return addedOptions > 0 ? 1 : 0;
 
   for (const group of missing) {
     // Keep the code's ordering: place the new group where it was authored.

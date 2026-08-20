@@ -1,3 +1,8 @@
+import {
+  DETAIL_COUNT_MAX,
+  DETAIL_COUNT_MIN,
+  DETAIL_TIER_MAX,
+} from "./types";
 import type {
   ConfigGroup,
   ConfigOption,
@@ -5,6 +10,7 @@ import type {
   ConfigState,
   ConfigValue,
   DessertTypeConfig,
+  OptionDetail,
   SummaryLine,
 } from "./types";
 
@@ -130,7 +136,19 @@ export function pruneState(
             isOptionVisible(dessert, group.key, key, current),
         );
         if (keep.length !== (value.options ?? []).length) changed = true;
-        if (keep.length > 0) next[group.key] = { options: keep };
+        if (keep.length > 0) {
+          // Per-option detail follows the option it belongs to: kept when the
+          // option survives the prune, dropped with it when a rule hides it.
+          const details: Record<string, OptionDetail> = {};
+          for (const key of keep) {
+            const detail = value.details?.[key];
+            if (detail) details[key] = detail;
+          }
+          next[group.key] =
+            Object.keys(details).length > 0
+              ? { options: keep, details }
+              : { options: keep };
+        }
       } else {
         next[group.key] = value;
       }
@@ -187,10 +205,73 @@ export function toggleOption(
     }
   }
 
-  const next: ConfigState = { ...state, [groupKey]: { options: nextKeys } };
+  // Details belong to a chosen option; deselecting one throws its settings
+  // away rather than leaving an orphan that would reappear on re-selection.
+  const previous = state[groupKey]?.details ?? {};
+  const details: Record<string, OptionDetail> = {};
+  for (const key of nextKeys) {
+    if (previous[key]) details[key] = previous[key];
+  }
+
+  const nextValue: ConfigValue = { options: nextKeys };
+  if (Object.keys(details).length > 0) nextValue.details = details;
+
+  const next: ConfigState = { ...state, [groupKey]: nextValue };
   if (nextKeys.length === 0) delete next[groupKey];
 
   return pruneState(dessert, next);
+}
+
+/**
+ * Groups whose options carry their own count and tier.
+ *
+ * Driven by the preview channel rather than by the group key, so a second
+ * decoration group — or a renamed one — behaves the same without code changes,
+ * exactly like every other channel in the configurator.
+ */
+export function supportsOptionDetail(group: ConfigGroup): boolean {
+  return group.previewChannel === "decoration";
+}
+
+/** Reads an option's settings, falling back to the group-wide defaults. */
+export function optionDetail(
+  state: ConfigState,
+  groupKey: string,
+  optionKey: string,
+): OptionDetail {
+  return state[groupKey]?.details?.[optionKey] ?? {};
+}
+
+export function setOptionDetail(
+  state: ConfigState,
+  groupKey: string,
+  optionKey: string,
+  patch: OptionDetail,
+): ConfigState {
+  const value = state[groupKey];
+  if (!value?.options?.includes(optionKey)) return state;
+
+  const merged: OptionDetail = { ...(value.details?.[optionKey] ?? {}), ...patch };
+
+  // Drop keys that are back at their default so the state stays minimal and
+  // the order snapshot never records a setting the customer did not make.
+  if (merged.tier === undefined || merged.tier === 0) delete merged.tier;
+  if (merged.count === undefined) delete merged.count;
+
+  const details = { ...(value.details ?? {}) };
+  if (Object.keys(merged).length === 0) delete details[optionKey];
+  else details[optionKey] = merged;
+
+  const nextValue: ConfigValue = { ...value };
+  if (Object.keys(details).length === 0) delete nextValue.details;
+  else nextValue.details = details;
+
+  return { ...state, [groupKey]: nextValue };
+}
+
+export function clampDetailCount(value: number): number {
+  if (!Number.isFinite(value)) return DETAIL_COUNT_MIN;
+  return Math.max(DETAIL_COUNT_MIN, Math.min(DETAIL_COUNT_MAX, Math.round(value)));
 }
 
 export function setTextValue(
@@ -233,6 +314,41 @@ export function validateState(
 
     if (group.inputType === "SINGLE" || group.inputType === "MULTI") {
       const keys = value?.options ?? [];
+      const details = value?.details ?? {};
+      for (const [optionKey, detail] of Object.entries(details)) {
+        if (!keys.includes(optionKey)) {
+          issues.push({
+            groupKey: group.key,
+            message: `„${group.label}“: настройка за неизбран елемент.`,
+          });
+          break;
+        }
+        if (
+          detail.count !== undefined &&
+          (!Number.isInteger(detail.count) ||
+            detail.count < DETAIL_COUNT_MIN ||
+            detail.count > DETAIL_COUNT_MAX)
+        ) {
+          issues.push({
+            groupKey: group.key,
+            message: `Броят трябва да е между ${DETAIL_COUNT_MIN} и ${DETAIL_COUNT_MAX}.`,
+          });
+          break;
+        }
+        if (
+          detail.tier !== undefined &&
+          (!Number.isInteger(detail.tier) ||
+            detail.tier < 0 ||
+            detail.tier > DETAIL_TIER_MAX)
+        ) {
+          issues.push({
+            groupKey: group.key,
+            message: `Невалиден етаж в „${group.label}“.`,
+          });
+          break;
+        }
+      }
+
       const unknown = keys.filter((k) => !group.options.some((o) => o.key === k));
       if (unknown.length > 0) {
         issues.push({
@@ -350,10 +466,25 @@ export function buildSummary(
     if (options.length === 0) continue;
 
     const priced = options.filter((o) => o.priceModifierCents !== null);
+    const details = value.details ?? {};
+
+    // The person actually making the cake reads this line, so "Малини (17 бр.,
+    // 2-ри етаж)" has to survive into the snapshot — not just "Малини".
+    const describe = (option: ConfigOption) => {
+      const detail = details[option.key];
+      if (!detail) return option.label;
+      const parts: string[] = [];
+      if (detail.count !== undefined) parts.push(`${detail.count} бр.`);
+      if (detail.tier) parts.push(tierLabel(detail.tier));
+      return parts.length > 0
+        ? `${option.label} (${parts.join(", ")})`
+        : option.label;
+    };
+
     lines.push({
       groupKey: group.key,
       groupLabel: group.label,
-      value: options.map((o) => o.label).join(", "),
+      value: options.map(describe).join(", "),
       optionKeys: options.map((o) => o.key),
       priceCents:
         priced.length > 0
@@ -363,6 +494,20 @@ export function buildSummary(
   }
 
   return lines;
+}
+
+const TIER_LABELS: Record<number, string> = {
+  1: "долен етаж",
+  2: "среден етаж",
+  3: "горен етаж",
+};
+
+/** Names a tier the way the customer picked it, counting from the bottom. */
+export function tierLabel(tier: number, tierCount = 3): string {
+  if (tier <= 0) return "всички етажи";
+  if (tierCount <= 1) return "";
+  if (tierCount === 2) return tier === 1 ? "долен етаж" : "горен етаж";
+  return TIER_LABELS[tier] ?? `етаж ${tier}`;
 }
 
 export type PriceEstimate = {

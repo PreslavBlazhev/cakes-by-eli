@@ -51,12 +51,33 @@ export type DessertTypeConfig = {
   rules: ConfigRule[];
 };
 
+/**
+ * Per-option settings, for groups that support them.
+ *
+ * A decoration is not a yes/no answer — "raspberries" means nothing until you
+ * know how many and where. Rather than inventing a group per decoration, the
+ * chosen option carries its own two numbers.
+ */
+export type OptionDetail = {
+  /** 1-based tier. 0 (or absent) means "spread across all the tiers". */
+  tier?: number;
+  /** How many of this decoration. Absent falls back to the group density. */
+  count?: number;
+};
+
 /** One group's current value. Only the field matching `inputType` is used. */
 export type ConfigValue = {
   options?: string[];
   text?: string;
   number?: number;
+  /** Keyed by option key; only present for groups that support detail. */
+  details?: Record<string, OptionDetail>;
 };
+
+/** Hard limits on a per-decoration count, shared by the UI and the server. */
+export const DETAIL_COUNT_MIN = 1;
+export const DETAIL_COUNT_MAX = 40;
+export const DETAIL_TIER_MAX = 3;
 
 export type ConfigState = Record<string, ConfigValue>;
 

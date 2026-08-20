@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildSummary,
+  clampDetailCount,
   completionProgress,
+  optionDetail,
+  setOptionDetail,
+  supportsOptionDetail,
   estimatePrice,
   isGroupVisible,
   isOptionVisible,
@@ -13,6 +17,10 @@ import {
   visibleSteps,
   withDefaults,
 } from "@/features/configurator/rules";
+import {
+  DETAIL_COUNT_MAX,
+  DETAIL_COUNT_MIN,
+} from "@/features/configurator/types";
 import type {
   ConfigGroup,
   ConfigState,
@@ -428,5 +436,143 @@ describe("preview model", () => {
   it("never exposes a channel for a hidden group", () => {
     const model = buildPreviewModel(dessert, base);
     expect(model.channels.dripColor).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Per-decoration count and tier
+ * ------------------------------------------------------------------ */
+
+describe("option detail", () => {
+  const chosen = toggleOption(dessert, {}, "decoration", "strawberries");
+
+  it("only offers detail on the groups that model decorations", () => {
+    const decoration = dessert.groups.find((g) => g.key === "decoration")!;
+    const shape = dessert.groups.find((g) => g.previewChannel !== "decoration")!;
+    expect(supportsOptionDetail(decoration)).toBe(true);
+    expect(supportsOptionDetail(shape)).toBe(false);
+  });
+
+  it("records a count and a tier against the chosen option", () => {
+    const state = setOptionDetail(chosen, "decoration", "strawberries", {
+      count: 17,
+      tier: 2,
+    });
+    expect(optionDetail(state, "decoration", "strawberries")).toEqual({
+      count: 17,
+      tier: 2,
+    });
+  });
+
+  it("merges patches instead of replacing the whole detail", () => {
+    let state = setOptionDetail(chosen, "decoration", "strawberries", {
+      count: 17,
+    });
+    state = setOptionDetail(state, "decoration", "strawberries", { tier: 3 });
+    expect(optionDetail(state, "decoration", "strawberries")).toEqual({
+      count: 17,
+      tier: 3,
+    });
+  });
+
+  it("treats tier 0 as 'all tiers' and stores nothing for it", () => {
+    let state = setOptionDetail(chosen, "decoration", "strawberries", {
+      tier: 2,
+    });
+    state = setOptionDetail(state, "decoration", "strawberries", { tier: 0 });
+    expect(optionDetail(state, "decoration", "strawberries").tier).toBeUndefined();
+  });
+
+  it("refuses to set detail on an option that is not selected", () => {
+    const state = setOptionDetail(chosen, "decoration", "flowers", { count: 5 });
+    expect(state).toBe(chosen);
+  });
+
+  it("throws the detail away when the decoration is deselected", () => {
+    const withDetail = setOptionDetail(chosen, "decoration", "strawberries", {
+      count: 17,
+    });
+    const off = toggleOption(dessert, withDetail, "decoration", "strawberries");
+    const back = toggleOption(dessert, off, "decoration", "strawberries");
+    expect(optionDetail(back, "decoration", "strawberries").count).toBeUndefined();
+  });
+
+  it("keeps the detail of the decorations that stay selected", () => {
+    let state = toggleOption(dessert, {}, "decoration", "strawberries");
+    state = setOptionDetail(state, "decoration", "strawberries", { count: 17 });
+    state = toggleOption(dessert, state, "decoration", "flowers");
+    expect(optionDetail(state, "decoration", "strawberries").count).toBe(17);
+  });
+
+  it("clamps a count to the range the server will accept", () => {
+    expect(clampDetailCount(0)).toBe(DETAIL_COUNT_MIN);
+    expect(clampDetailCount(999)).toBe(DETAIL_COUNT_MAX);
+    expect(clampDetailCount(17.4)).toBe(17);
+    expect(clampDetailCount(Number.NaN)).toBe(DETAIL_COUNT_MIN);
+  });
+});
+
+describe("option detail — validation", () => {
+  const chosen = toggleOption(dessert, {}, "decoration", "strawberries");
+
+  it("rejects a count outside the allowed range", () => {
+    const state: ConfigState = {
+      ...chosen,
+      decoration: {
+        options: ["strawberries"],
+        details: { strawberries: { count: 999 } },
+      },
+    };
+    expect(validateState(dessert, state).length).toBeGreaterThan(0);
+  });
+
+  it("rejects detail attached to an option that was never chosen", () => {
+    const state: ConfigState = {
+      decoration: {
+        options: ["strawberries"],
+        details: { flowers: { count: 3 } },
+      },
+    };
+    expect(validateState(dessert, state).length).toBeGreaterThan(0);
+  });
+
+  it("accepts a count and tier inside the range", () => {
+    const state = setOptionDetail(chosen, "decoration", "strawberries", {
+      count: 17,
+      tier: 3,
+    });
+    expect(
+      validateState(dessert, state).filter((i) => i.groupKey === "decoration"),
+    ).toEqual([]);
+  });
+});
+
+describe("option detail — the order snapshot", () => {
+  it("spells the count and tier out for the person making the cake", () => {
+    let state = toggleOption(dessert, {}, "decoration", "strawberries");
+    state = setOptionDetail(state, "decoration", "strawberries", {
+      count: 17,
+      tier: 3,
+    });
+
+    const line = buildSummary(dessert, state).find(
+      (l) => l.groupKey === "decoration",
+    );
+    expect(line?.value).toBe("Ягоди (17 бр., горен етаж)");
+  });
+
+  it("leaves an undecorated choice reading exactly as before", () => {
+    const state = toggleOption(dessert, {}, "decoration", "strawberries");
+    const line = buildSummary(dessert, state).find(
+      (l) => l.groupKey === "decoration",
+    );
+    expect(line?.value).toBe("Ягоди");
+  });
+
+  it("carries the detail into the preview model, keyed by preview token", () => {
+    let state = toggleOption(dessert, {}, "decoration", "strawberries");
+    state = setOptionDetail(state, "decoration", "strawberries", { count: 9 });
+    const model = buildPreviewModel(dessert, state);
+    expect(model.details.decoration?.strawberries).toEqual({ count: 9 });
   });
 });

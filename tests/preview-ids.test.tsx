@@ -35,6 +35,7 @@ function model(renderer: string): PreviewModel {
       assortment: ["cake"],
     },
     labels: {},
+    details: {},
     text: {},
     numbers: {},
   };

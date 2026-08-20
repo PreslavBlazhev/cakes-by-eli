@@ -1,16 +1,21 @@
-import { seeded } from "./geometry";
 import type { TierGeometry } from "./geometry";
 
 /**
  * Where every decoration sits — resolved once, drawn from two viewpoints.
  *
- * The customer picks *how* the decorations are arranged, not just which ones
- * they want, so the arrangement has to be a first-class piece of data rather
- * than something each renderer improvises. A slot is described in the cake's
- * own cylindrical coordinates — which tier, which way round, how far from the
- * axis — and each view projects that description in its own way. Because both
- * views read the same slots, the blueberry the customer sees at the back in
- * the top view is the same blueberry hidden behind the cake in the side view.
+ * Two properties matter, and both are structural rather than cosmetic:
+ *
+ * 1. **Symmetry.** Every decoration is laid out with exact n-fold rotational
+ *    symmetry — seventeen raspberries land at exactly 360°/17 apart. Nothing
+ *    here is random and nothing is nudged "to look natural": an iced cake is
+ *    judged on whether the fruit is evenly spaced, so the drawing has to
+ *    promise what the kitchen will actually deliver.
+ *
+ * 2. **One source of truth.** A slot is described in the cake's own
+ *    cylindrical coordinates — which tier, which way round, how far from the
+ *    axis — and each view projects that description its own way. The raspberry
+ *    hidden behind the cake in elevation is the same raspberry visible at the
+ *    back of the plan view.
  */
 export type Surface = "top" | "side";
 
@@ -27,13 +32,22 @@ export type PlacementSlot = {
   radius: number;
   /** Whether the item rests on a top surface or clings to a tier wall. */
   surface: Surface;
-  /** Size multiplier before any view-specific perspective is applied. */
+  /** Size multiplier, shrunk automatically as a ring gets crowded. */
   scale: number;
-  /** Draw order seed — later items sit in front. */
+  /** Draw order — later items sit in front. */
   order: number;
 };
 
-/** How the customer chose to arrange the decorations. */
+/** What the customer asked for, per decoration. */
+export type DecorSpec = {
+  token: string;
+  /** How many of this decoration. Always at least 1. */
+  count: number;
+  /** 1-based tier, or 0 for "spread evenly across all the tiers". */
+  tier: number;
+};
+
+/** The pattern the decorations follow on whichever tier they occupy. */
 export type PlacementMode =
   | "top"
   | "crown"
@@ -44,10 +58,11 @@ export type PlacementMode =
 
 export type Density = "sparse" | "medium" | "rich";
 
-const PER_TOKEN: Record<Density, number> = {
-  sparse: 2,
-  medium: 3,
-  rich: 5,
+/** Fallback count for a decoration the customer has not numbered explicitly. */
+export const DENSITY_COUNT: Record<Density, number> = {
+  sparse: 3,
+  medium: 6,
+  rich: 10,
 };
 
 export const PLACEMENT_MODES: PlacementMode[] = [
@@ -73,153 +88,199 @@ export function isDensity(value: string): value is Density {
  */
 export const NON_SLOT_TOKENS = new Set(["sprinkles", "candles"]);
 
+/** How wide one decoration glyph is, in view units, before scaling. */
+const GLYPH_WIDTH = 17;
+/** Ceiling on the number of glyphs drawn, whatever the customer asks for. */
+const MAX_SLOTS = 200;
+/** Half-width of the fan used by the front-facing arrangement, in radians. */
+const FRONT_SPAN = 1.15;
+
 export function buildPlacement({
-  tokens,
-  tierCount,
-  mode = "top",
-  density = "medium",
+  specs,
+  tiers,
+  mode = "crown",
 }: {
-  tokens: string[];
-  tierCount: number;
+  specs: DecorSpec[];
+  tiers: TierGeometry[];
   mode?: PlacementMode;
-  density?: Density;
 }): PlacementSlot[] {
-  const items = tokens.filter((t) => !NON_SLOT_TOKENS.has(t)).slice(0, 5);
-  if (items.length === 0) return [];
+  const usable = specs.filter(
+    (spec) => !NON_SLOT_TOKENS.has(spec.token) && spec.count > 0,
+  );
+  if (usable.length === 0 || tiers.length === 0) return [];
 
-  const tiers = Math.max(1, Math.min(3, tierCount));
-  const perToken = PER_TOKEN[density];
+  const tierCount = tiers.length;
   const slots: PlacementSlot[] = [];
+  let order = 0;
+  let budget = MAX_SLOTS;
 
-  // `cascade` and `sides` need more than one tier to mean anything; with a
-  // single tier they degrade to the arrangements that read closest to them.
-  const effective: PlacementMode =
-    tiers === 1 && mode === "cascade" ? "crown" : mode;
-
-  items.forEach((token, tokenIndex) => {
-    for (let i = 0; i < perToken; i += 1) {
-      const seed = tokenIndex * 17 + i * 5 + 3;
-      slots.push({
-        ...position(effective, {
-          tokenIndex,
-          itemIndex: i,
-          perToken,
-          tokenCount: items.length,
-          tiers,
-          seed,
-        }),
-        id: `${token}-${i}`,
-        token,
-        order: tokenIndex * perToken + i,
-      });
+  // How many decorations share each tier, so their phases can be staggered
+  // without either of them losing its own symmetry.
+  const occupancy = new Map<number, number>();
+  for (const spec of usable) {
+    for (const tier of tiersFor(spec, tierCount, mode)) {
+      occupancy.set(tier, (occupancy.get(tier) ?? 0) + 1);
     }
-  });
+  }
+  const placedOnTier = new Map<number, number>();
+
+  for (const spec of usable) {
+    const assigned = tiersFor(spec, tierCount, mode);
+    const shares = split(spec.count, assigned.length);
+
+    assigned.forEach((tierIndex, i) => {
+      const n = shares[i];
+      if (n <= 0) return;
+
+      const rank = placedOnTier.get(tierIndex) ?? 0;
+      placedOnTier.set(tierIndex, rank + 1);
+      const sharing = occupancy.get(tierIndex) ?? 1;
+
+      const surface: Surface = mode === "sides" ? "side" : "top";
+      const radius = radiusFor(mode);
+      const scale = fitScale(tiers[tierIndex], radius, n, sharing);
+
+      for (let j = 0; j < n; j += 1) {
+        if (budget <= 0) return;
+        budget -= 1;
+        slots.push({
+          id: `${spec.token}-${tierIndex}-${j}`,
+          token: spec.token,
+          tier: tierIndex,
+          angle: angleFor(mode, j, n, rank, sharing, tierIndex),
+          radius,
+          surface,
+          scale,
+          order: order++,
+        });
+      }
+    });
+  }
 
   // Nearer items last, so the painter's algorithm in the side view is simply
   // "draw in array order".
   return slots.sort((a, b) => Math.cos(b.angle) - Math.cos(a.angle));
 }
 
-type Ctx = {
-  tokenIndex: number;
-  itemIndex: number;
-  perToken: number;
-  tokenCount: number;
-  tiers: number;
-  seed: number;
-};
+/* ------------------------------------------------------------------ *
+ * Symmetry
+ * ------------------------------------------------------------------ */
 
-function position(
+/**
+ * Splits a count across tiers as evenly as possible, giving any remainder to
+ * the upper tiers — where an extra piece reads as deliberate rather than as a
+ * mistake.
+ */
+function split(count: number, buckets: number): number[] {
+  if (buckets <= 1) return [count];
+
+  const base = Math.floor(count / buckets);
+  const remainder = count % buckets;
+
+  return Array.from({ length: buckets }, (_, i) =>
+    buckets - i <= remainder ? base + 1 : base,
+  );
+}
+
+/**
+ * Which tiers a decoration occupies.
+ *
+ * The per-decoration tier is authoritative: the card says "Всички етажи" or
+ * "2", and that is what has to happen. The arrangement mode decides the
+ * *pattern* on whichever tiers these are — a ring, a front-facing arc, the
+ * walls — and never quietly moves the decoration somewhere else. The single
+ * exception is `base`, which is defined as "around the foot" and so is a
+ * statement about the tier rather than about the pattern.
+ */
+function tiersFor(
+  spec: DecorSpec,
+  tierCount: number,
   mode: PlacementMode,
-  ctx: Ctx,
-): Omit<PlacementSlot, "id" | "token" | "order"> {
-  const { tokenIndex, itemIndex, perToken, tokenCount, tiers, seed } = ctx;
+): number[] {
+  if (mode === "base") return [0];
 
-  const total = tokenCount * perToken;
-  /** Interleaved rank of this item across all tokens. */
-  const rank = itemIndex * tokenCount + tokenIndex;
-  /** Position of this item within the whole arrangement, 0…1. */
-  const global = rank / Math.max(1, total - 1);
-  /** Spread within this token's own cluster, -1…1. */
-  const local = perToken === 1 ? 0 : (itemIndex / (perToken - 1)) * 2 - 1;
-
-  switch (mode) {
-    /* Everything gathered on the top tier, facing the viewer. */
-    case "top": {
-      const fan = ((tokenIndex - (tokenCount - 1) / 2) / Math.max(1, tokenCount)) * 0.9;
-      return {
-        tier: tiers - 1,
-        angle: local * 1.15 + fan,
-        radius: 0.42 + Math.abs(local) * 0.24,
-        surface: "top",
-        scale: 0.92 + (1 - Math.abs(local)) * 0.14,
-      };
-    }
-
-    /* An even ring around the rim of the top tier. */
-    case "crown": {
-      return {
-        tier: tiers - 1,
-        angle: (rank / total) * Math.PI * 2,
-        radius: 0.84,
-        surface: "top",
-        scale: 0.9,
-      };
-    }
-
-    /*
-     * The classic cascade: a diagonal spill that starts at the back of the
-     * top tier and runs forward and down across the tiers below.
-     */
-    case "cascade": {
-      const t = global;
-      const tier = Math.min(tiers - 1, Math.floor((1 - t) * tiers));
-      return {
-        tier,
-        // Spirals from the back of the top tier round to the front as it
-        // descends, alternating sides so the spill straddles the cake.
-        angle: Math.PI * (1 - t * 1.35) * (rank % 2 === 0 ? 1 : -1),
-        radius: 0.66 + (seeded(seed) - 0.5) * 0.26,
-        surface: "top",
-        scale: 0.88 + t * 0.2,
-      };
-    }
-
-    /* Spread over every tier, deliberately irregular but reproducible. */
-    case "scattered": {
-      const tier = (tokenIndex + itemIndex) % tiers;
-      return {
-        tier,
-        angle: seeded(seed) * Math.PI * 2,
-        radius: 0.3 + seeded(seed + 91) * 0.55,
-        surface: "top",
-        scale: 0.84 + seeded(seed + 7) * 0.26,
-      };
-    }
-
-    /* Gathered around the foot of the cake. */
-    case "base": {
-      return {
-        tier: 0,
-        angle: (rank / total) * Math.PI * 2 + 0.2,
-        radius: 0.95,
-        surface: "top",
-        scale: 0.95,
-      };
-    }
-
-    /* Applied to the walls rather than the surfaces. */
-    case "sides": {
-      const tier = rank % tiers;
-      return {
-        tier,
-        angle: ((rank / total) * Math.PI * 2 + tier * 0.7) % (Math.PI * 2),
-        radius: 1,
-        surface: "side",
-        scale: 0.78,
-      };
-    }
+  if (spec.tier >= 1 && spec.tier <= tierCount) {
+    // The customer counts tiers from the bottom, like everyone else.
+    return [spec.tier - 1];
   }
+
+  return Array.from({ length: tierCount }, (_, i) => i);
+}
+
+/**
+ * The angle of item `j` of `n`.
+ *
+ * Both arrangements are mirror-symmetric about the axis facing the viewer, so
+ * the cake reads as balanced from the front as well as from above.
+ */
+function angleFor(
+  mode: PlacementMode,
+  j: number,
+  n: number,
+  rank: number,
+  sharing: number,
+  tierIndex: number,
+): number {
+  if (mode === "top") {
+    // A symmetric fan across the front. A lone item sits dead centre.
+    if (n === 1) return 0;
+    const step = (FRONT_SPAN * 2) / (n - 1);
+    return -FRONT_SPAN + j * step;
+  }
+
+  // Everything else is a full ring at exactly 360°/n.
+  const step = (Math.PI * 2) / n;
+
+  // Decorations sharing a tier are offset by a fraction of one step so they
+  // interleave instead of colliding, while each keeps its own symmetry.
+  let phase = sharing > 1 ? (rank / sharing) * step : 0;
+
+  // A cascade rotates each tier's ring half a step against the one below, so
+  // the stack reads as a spiral without any item leaving its even spacing.
+  if (mode === "cascade") phase += (tierIndex % 2) * (step / 2);
+
+  return j * step + phase;
+}
+
+/**
+ * How far out the ring sits, as a fraction of the tier's half-width.
+ *
+ * This is the other half of what makes the arrangements distinct: they are all
+ * symmetric rings, and what separates them is where the ring sits and how the
+ * tiers relate to each other.
+ */
+function radiusFor(mode: PlacementMode): number {
+  switch (mode) {
+    case "top":
+      return 0.6;
+    case "scattered":
+      // Drawn in from the edge, sitting on the surface rather than the rim.
+      return 0.55;
+    case "base":
+      return 0.99;
+    case "sides":
+      return 1;
+    default:
+      return 0.84;
+  }
+}
+
+/**
+ * Shrinks the glyphs when a ring gets crowded.
+ *
+ * Seventeen raspberries on a small top tier would otherwise overlap into a
+ * solid band. The arc available per item is what decides the size, so the
+ * spacing stays visually even whatever number the customer types.
+ */
+function fitScale(
+  tier: TierGeometry,
+  radius: number,
+  n: number,
+  sharing: number,
+): number {
+  const circumference = Math.PI * tier.width * radius;
+  const perItem = circumference / Math.max(1, n * sharing);
+  return Math.max(0.4, Math.min(1.15, perItem / GLYPH_WIDTH));
 }
 
 /* ------------------------------------------------------------------ *
@@ -311,9 +372,7 @@ export function projectTop(
 
   // Wall-mounted items sit exactly on their tier's outline from above.
   const r =
-    slot.surface === "side"
-      ? tierRadius
-      : tierRadius * ledgeRadius(slot, tiers);
+    slot.surface === "side" ? tierRadius : tierRadius * ledgeRadius(slot, tiers);
 
   return {
     x: centre.cx + Math.sin(slot.angle) * r,
@@ -321,4 +380,35 @@ export function projectTop(
     scale: slot.scale,
     depth: Math.cos(slot.angle),
   };
+}
+
+/* ------------------------------------------------------------------ *
+ * Reading the configuration
+ * ------------------------------------------------------------------ */
+
+/**
+ * Turns the chosen decorations and their per-option settings into specs.
+ *
+ * Kept here rather than in the renderers so the elevation and the plan view
+ * can never disagree about what the customer asked for.
+ */
+export function specsFrom({
+  tokens,
+  details,
+  density,
+}: {
+  tokens: string[];
+  details: Record<string, { tier?: number; count?: number }>;
+  density: Density;
+}): DecorSpec[] {
+  return tokens
+    .filter((token) => !NON_SLOT_TOKENS.has(token))
+    .map((token) => {
+      const detail = details[token] ?? {};
+      return {
+        token,
+        count: detail.count ?? DENSITY_COUNT[density],
+        tier: detail.tier ?? 0,
+      };
+    });
 }

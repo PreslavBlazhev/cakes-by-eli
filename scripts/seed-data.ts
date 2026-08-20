@@ -37,6 +37,12 @@ export type SeedGroupInput = {
   previewChannel?: string;
   step: number;
   options?: SeedOptionInput[];
+  /**
+   * Marks a group as a catalogue of building blocks the seed is allowed to
+   * extend on a later deploy. Without it a group is treated as the owner's
+   * own composition and is never touched once it exists.
+   */
+  extensible?: boolean;
 };
 
 export type SeedRuleInput = {
@@ -224,6 +230,18 @@ const DECORATIONS: SeedOptionInput[] = [
   { key: "flowers", label: "Цветя", previewValue: "flowers" },
   { key: "pearls", label: "Захарни перли", previewValue: "pearls" },
   { key: "gold", label: "Златни детайли", previewValue: "gold" },
+  { key: "cherries", label: "Череши", previewValue: "cherries" },
+  { key: "blackberries", label: "Къпини", previewValue: "blackberries" },
+  { key: "physalis", label: "Физалис", previewValue: "physalis" },
+  { key: "orange", label: "Портокалови филийки", previewValue: "orange" },
+  { key: "meringue", label: "Целувки", previewValue: "meringue" },
+  { key: "mint", label: "Ментови листа", previewValue: "mint" },
+  { key: "hazelnuts", label: "Лешници", previewValue: "hazelnuts" },
+  { key: "pistachios", label: "Шамфъстък", previewValue: "pistachios" },
+  { key: "whitechocolate", label: "Бял шоколад", previewValue: "whitechocolate" },
+  { key: "wafer", label: "Вафлени рулца", previewValue: "wafer" },
+  { key: "hearts", label: "Захарни сърца", previewValue: "hearts" },
+  { key: "stars", label: "Захарни звезди", previewValue: "stars" },
   { key: "sprinkles", label: "Поръска", previewValue: "sprinkles" },
   { key: "candles", label: "Свещички", previewValue: "candles" },
 ];
@@ -243,32 +261,32 @@ const PLACEABLE_DECORATIONS = DECORATIONS.filter(
 const DECOR_PLACEMENT: SeedOptionInput[] = [
   {
     key: "top",
-    label: "Отгоре",
-    description: "Събрана на горната повърхност, обърната към вас.",
+    label: "Отпред",
+    description: "Симетрична дъга, обърната към вас.",
     previewValue: "top",
   },
   {
     key: "crown",
     label: "Венец по ръба",
-    description: "Равномерен пръстен около целия горен ръб.",
+    description: "Равномерен пръстен по целия ръб.",
     previewValue: "crown",
   },
   {
     key: "cascade",
     label: "Каскада",
-    description: "Спуска се диагонално по етажите надолу.",
+    description: "Пръстени по етажите, разместени един спрямо друг.",
     previewValue: "cascade",
   },
   {
     key: "scattered",
-    label: "Разпръсната",
-    description: "Свободно разпределена по всички етажи.",
+    label: "По повърхността",
+    description: "Пръстен, отдръпнат навътре от ръба.",
     previewValue: "scattered",
   },
   {
     key: "base",
     label: "В основата",
-    description: "Събрана около долния етаж.",
+    description: "Пръстен около долния етаж.",
     previewValue: "base",
   },
   {
@@ -416,8 +434,10 @@ export const DESSERT_TYPES: SeedDessertType[] = [
         step: 5,
         previewChannel: "decoration",
         inputType: "MULTI",
-        maxSelect: 5,
-        helpText: "Изберете до пет елемента.",
+        maxSelect: 8,
+        helpText:
+          "Изберете до осем елемента. След избора задайте брой и етаж за всеки.",
+        extensible: true,
         options: DECORATIONS,
       },
       {
@@ -426,7 +446,7 @@ export const DESSERT_TYPES: SeedDessertType[] = [
         step: 5,
         previewChannel: "decorPlacement",
         helpText:
-          "Къде да стоят избраните елементи. Вижте резултата и в двата изгледа вдясно.",
+          "Как да бъдат подредени. Всяка подредба е симетрична; етажът се задава поотделно за всяка декорация.",
         options: DECOR_PLACEMENT,
       },
       {
@@ -434,7 +454,8 @@ export const DESSERT_TYPES: SeedDessertType[] = [
         label: "Плътност",
         step: 5,
         previewChannel: "decorDensity",
-        helpText: "Колко нагъсто да бъдат подредени.",
+        helpText:
+          "Използва се само за декорациите, за които не сте задали точен брой.",
         options: DECOR_DENSITY,
       },
       {
@@ -1058,8 +1079,10 @@ export const DESSERT_TYPES: SeedDessertType[] = [
         step: 4,
         previewChannel: "decoration",
         inputType: "MULTI",
-        maxSelect: 3,
-        options: DECORATIONS.slice(0, 8),
+        maxSelect: 5,
+        helpText: "След избора задайте брой за всеки елемент.",
+        extensible: true,
+        options: DECORATIONS.slice(0, 14),
       },
       {
         key: "decorPlacement",

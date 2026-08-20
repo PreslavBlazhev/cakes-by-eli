@@ -1,5 +1,9 @@
 import { findOption, visibleGroups } from "../rules";
-import type { ConfigState, DessertTypeConfig } from "../types";
+import type {
+  ConfigState,
+  DessertTypeConfig,
+  OptionDetail,
+} from "../types";
 
 /**
  * The bridge between configuration data and the SVG visualiser.
@@ -14,6 +18,13 @@ export type PreviewModel = {
   channels: Record<string, string[]>;
   /** channel → labels, used for captions such as the cake message. */
   labels: Record<string, string[]>;
+  /**
+   * channel → preview token → that option's own settings.
+   *
+   * Keyed by preview token rather than option key, so the renderers keep
+   * reading tokens and never learn what a group key is.
+   */
+  details: Record<string, Record<string, OptionDetail>>;
   text: Record<string, string>;
   numbers: Record<string, number>;
 };
@@ -26,6 +37,7 @@ export function buildPreviewModel(
     renderer: dessert.renderer,
     channels: {},
     labels: {},
+    details: {},
     text: {},
     numbers: {},
   };
@@ -49,15 +61,22 @@ export function buildPreviewModel(
 
     const tokens: string[] = [];
     const labels: string[] = [];
+    const details: Record<string, OptionDetail> = {};
+
     for (const key of value.options ?? []) {
       const option = findOption(group, key);
       if (!option) continue;
-      tokens.push(option.previewValue || option.key);
+      const token = option.previewValue || option.key;
+      tokens.push(token);
       labels.push(option.label);
+      const detail = value.details?.[key];
+      if (detail) details[token] = detail;
     }
+
     if (tokens.length > 0) {
       model.channels[channel] = tokens;
       model.labels[channel] = labels;
+      if (Object.keys(details).length > 0) model.details[channel] = details;
     }
   }
 
@@ -78,6 +97,14 @@ export function channelValue(
 
 export function channelList(model: PreviewModel, channel: string): string[] {
   return model.channels[channel] ?? [];
+}
+
+/** Per-option settings for a channel, keyed by preview token. */
+export function channelDetails(
+  model: PreviewModel,
+  channel: string,
+): Record<string, OptionDetail> {
+  return model.details[channel] ?? {};
 }
 
 export function channelHas(

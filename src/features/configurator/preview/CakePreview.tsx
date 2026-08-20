@@ -5,6 +5,7 @@ import { Fragment } from "react";
 
 import {
   channelColor,
+  channelDetails,
   channelHas,
   channelList,
   channelText,
@@ -34,6 +35,7 @@ import {
   isPlacementMode,
   isVisibleFromSide,
   projectSide,
+  specsFrom,
 } from "./placement";
 import {
   Candle,
@@ -66,9 +68,9 @@ export function CakePreview({ model }: { model: PreviewModel }) {
   const dripColor = channelColor(model, "dripColor", "#5a3524");
   const ribbon = channelValue(model, "ribbon", "none");
   const decorations = channelList(model, "decoration");
-  const rawPlacement = channelValue(model, "decorPlacement", "top");
+  const rawPlacement = channelValue(model, "decorPlacement", "crown");
   const rawDensity = channelValue(model, "decorDensity", "medium");
-  const placementMode = isPlacementMode(rawPlacement) ? rawPlacement : "top";
+  const placementMode = isPlacementMode(rawPlacement) ? rawPlacement : "crown";
   const density = isDensity(rawDensity) ? rawDensity : "medium";
   const topper = channelValue(model, "topper", "none");
   const topperText = channelText(model, "topperText");
@@ -76,10 +78,13 @@ export function CakePreview({ model }: { model: PreviewModel }) {
 
   const tiers = buildTiers(isHeart ? 1 : tierCount, shape);
   const slots = buildPlacement({
-    tokens: decorations,
-    tierCount: tiers.length,
+    specs: specsFrom({
+      tokens: decorations,
+      details: channelDetails(model, "decoration"),
+      density,
+    }),
+    tiers,
     mode: placementMode,
-    density,
   });
   const topTier = tiers[tiers.length - 1];
   const bottomTier = tiers[0];

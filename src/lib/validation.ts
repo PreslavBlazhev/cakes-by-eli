@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  DETAIL_COUNT_MAX,
+  DETAIL_COUNT_MIN,
+  DETAIL_TIER_MAX,
+} from "@/features/configurator/types";
 
 import { normalizeBgPhone } from "@/lib/format";
 
@@ -38,10 +43,26 @@ export const fulfillmentDateSchema = trimmed
     return year >= 2020 && year <= 2100;
   }, "Моля, изберете валидна дата.");
 
+/**
+ * Per-option settings. The bounds are duplicated from the configurator's
+ * constants on purpose: this is the outer wall, and it must hold even if a
+ * future UI forgets to clamp.
+ */
+export const optionDetailSchema = z.object({
+  tier: z.number().int().min(0).max(DETAIL_TIER_MAX).optional(),
+  count: z
+    .number()
+    .int()
+    .min(DETAIL_COUNT_MIN)
+    .max(DETAIL_COUNT_MAX)
+    .optional(),
+});
+
 export const configValueSchema = z.object({
   options: z.array(trimmed.min(1).max(64)).max(12).optional(),
   text: z.string().max(400).optional(),
   number: z.number().finite().min(1).max(100000).optional(),
+  details: z.record(trimmed.min(1).max(64), optionDetailSchema).optional(),
 });
 
 export const configStateSchema = z.record(

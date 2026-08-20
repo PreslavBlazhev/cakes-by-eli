@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 
 import {
   channelColor,
+  channelDetails,
   channelHas,
   channelList,
   channelText,
@@ -20,6 +21,7 @@ import {
   isDensity,
   isPlacementMode,
   projectTop,
+  specsFrom,
 } from "./placement";
 
 const layerTransition = { duration: 0.55, ease: [0.22, 1, 0.36, 1] } as const;
@@ -52,19 +54,22 @@ export function CakeTopView({ model }: { model: PreviewModel }) {
   const topperText = channelText(model, "topperText");
   const message = channelText(model, "message");
 
-  const rawPlacement = channelValue(model, "decorPlacement", "top");
+  const rawPlacement = channelValue(model, "decorPlacement", "crown");
   const rawDensity = channelValue(model, "decorDensity", "medium");
-  const placementMode = isPlacementMode(rawPlacement) ? rawPlacement : "top";
+  const placementMode = isPlacementMode(rawPlacement) ? rawPlacement : "crown";
   const density = isDensity(rawDensity) ? rawDensity : "medium";
 
   const tiers = buildTiers(isHeart ? 1 : tierCount, shape);
   const widest = Math.max(...tiers.map((t) => t.width));
 
   const slots = buildPlacement({
-    tokens: decorations,
-    tierCount: tiers.length,
+    specs: specsFrom({
+      tokens: decorations,
+      details: channelDetails(model, "decoration"),
+      density,
+    }),
+    tiers,
     mode: placementMode,
-    density,
   });
 
   const isGanache = style === "ganache";

@@ -2,24 +2,42 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Minus, Plus } from "lucide-react";
 
 import { Field, Input, OptionCard, Textarea } from "@/components/ui/form";
 import {
   buildSummary,
+  clampDetailCount,
   completionProgress,
+  optionDetail,
   setNumberValue,
+  setOptionDetail,
   setTextValue,
+  supportsOptionDetail,
+  tierLabel,
   toggleOption,
   visibleSteps,
 } from "@/features/configurator/rules";
+import {
+  DETAIL_COUNT_MAX,
+  DETAIL_COUNT_MIN,
+} from "@/features/configurator/types";
 import type {
   ConfigGroup,
+  ConfigOption,
   ConfigState,
   DessertTypeConfig,
+  OptionDetail,
 } from "@/features/configurator/types";
-import { buildPreviewModel } from "@/features/configurator/preview/model";
+import {
+  buildPreviewModel,
+  channelValue,
+} from "@/features/configurator/preview/model";
 import type { PreviewModel } from "@/features/configurator/preview/model";
+import {
+  DENSITY_COUNT,
+  isDensity,
+} from "@/features/configurator/preview/placement";
 import { DessertPreview } from "@/features/configurator/preview/DessertPreview";
 import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/format";
@@ -59,6 +77,17 @@ export function CustomBuilder({
     () => buildSummary(dessert, state),
     [dessert, state],
   );
+
+  // How many tiers the cake currently has, so the tier picker only offers
+  // the ones that exist. Read from the preview model, which already resolves
+  // the channel, rather than by hunting for a group named "tiers".
+  const tierCount = Math.max(
+    1,
+    Math.min(3, Number(channelValue(model, "tiers", "1")) || 1),
+  );
+  const rawDensity = channelValue(model, "decorDensity", "medium");
+  const fallbackCount =
+    DENSITY_COUNT[isDensity(rawDensity) ? rawDensity : "medium"];
 
   const currentStepIndex = steps.findIndex((step) =>
     step.groups.some((group) => !hasValue(state, group)),
@@ -166,6 +195,8 @@ export function CustomBuilder({
                       state={state}
                       onChange={onChange}
                       error={errors[`config.${group.key}`]}
+                      tierCount={tierCount}
+                      fallbackCount={fallbackCount}
                     />
                   ))}
                 </div>
@@ -335,12 +366,16 @@ function GroupControl({
   state,
   onChange,
   error,
+  tierCount,
+  fallbackCount,
 }: {
   dessert: DessertTypeConfig;
   group: ConfigGroup;
   state: ConfigState;
   onChange: (next: ConfigState) => void;
   error?: string;
+  tierCount: number;
+  fallbackCount: number;
 }) {
   const value = state[group.key];
   const selected = value?.options ?? [];
@@ -414,6 +449,7 @@ function GroupControl({
     );
   }
 
+  const hasDetail = supportsOptionDetail(group);
   const isSwatchGroup = group.options.some((option) => option.swatchColor);
 
   return (
@@ -462,21 +498,39 @@ function GroupControl({
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
-              <OptionCard
-                selected={selected.includes(option.key)}
-                multi={isMulti}
-                title={option.label}
-                description={option.description || undefined}
-                swatch={option.swatchColor}
-                price={
-                  option.priceModifierCents
-                    ? `+${formatPrice(option.priceModifierCents)}`
-                    : null
-                }
-                onSelect={() =>
-                  onChange(toggleOption(dessert, state, group.key, option.key))
-                }
-              />
+              {hasDetail ? (
+                <DecorationCard
+                  option={option}
+                  selected={selected.includes(option.key)}
+                  detail={optionDetail(state, group.key, option.key)}
+                  tierCount={tierCount}
+                  fallbackCount={fallbackCount}
+                  onToggle={() =>
+                    onChange(toggleOption(dessert, state, group.key, option.key))
+                  }
+                  onDetail={(patch) =>
+                    onChange(
+                      setOptionDetail(state, group.key, option.key, patch),
+                    )
+                  }
+                />
+              ) : (
+                <OptionCard
+                  selected={selected.includes(option.key)}
+                  multi={isMulti}
+                  title={option.label}
+                  description={option.description || undefined}
+                  swatch={option.swatchColor}
+                  price={
+                    option.priceModifierCents
+                      ? `+${formatPrice(option.priceModifierCents)}`
+                      : null
+                  }
+                  onSelect={() =>
+                    onChange(toggleOption(dessert, state, group.key, option.key))
+                  }
+                />
+              )}
             </motion.div>
           ))}
         </AnimatePresence>
@@ -488,6 +542,230 @@ function GroupControl({
         </p>
       ) : null}
     </fieldset>
+  );
+}
+
+/**
+ * A decoration, with its own number and tier.
+ *
+ * Once chosen, the card stops being a yes/no answer: the label restates the
+ * whole decision — "Малини · 17 бр. · среден етаж" — and the two controls that
+ * produced it sit underneath. They are siblings of the toggle rather than
+ * children of it, because a button inside a button is neither valid HTML nor
+ * operable from the keyboard.
+ */
+function DecorationCard({
+  option,
+  selected,
+  detail,
+  tierCount,
+  fallbackCount,
+  onToggle,
+  onDetail,
+}: {
+  option: ConfigOption;
+  selected: boolean;
+  detail: OptionDetail;
+  tierCount: number;
+  fallbackCount: number;
+  onToggle: () => void;
+  onDetail: (patch: OptionDetail) => void;
+}) {
+  const count = detail.count ?? fallbackCount;
+  const tier = detail.tier ?? 0;
+  const inputId = `decor-${option.key}-count`;
+
+  const summary = selected
+    ? [`${count} бр.`, tierCount > 1 ? tierLabel(tier, tierCount) : null]
+        .filter(Boolean)
+        .join(" · ")
+    : option.description || "";
+
+  return (
+    <div
+      className={cn(
+        "rounded-[var(--radius-sm)] border transition-[border-color,background-color] duration-200",
+        selected ? "border-rose-dark bg-blush-soft" : "border-line bg-paper",
+      )}
+    >
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={selected}
+        onClick={onToggle}
+        className="relative flex w-full items-center gap-3.5 px-4 py-3.5 text-left"
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-y-0 left-0 w-[3px] rounded-l-[2px] transition-colors duration-200",
+            selected ? "bg-rose-dark" : "bg-transparent",
+          )}
+        />
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex size-[18px] flex-none items-center justify-center rounded-[2px] border transition-colors duration-200",
+            selected
+              ? "border-rose-dark bg-rose-dark"
+              : "border-line-strong bg-paper",
+          )}
+        >
+          {selected ? <span className="size-2 rounded-[1px] bg-paper" /> : null}
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span
+            className={cn(
+              "block text-[0.9rem] leading-snug",
+              selected ? "font-bold text-rose-deep" : "font-semibold text-ink",
+            )}
+          >
+            {option.label}
+          </span>
+          {summary ? (
+            <span
+              className={cn(
+                "mt-0.5 block text-[0.76rem] leading-snug",
+                selected ? "font-semibold text-rose-dark" : "text-ink-soft",
+              )}
+            >
+              {summary}
+            </span>
+          ) : null}
+        </span>
+
+        {option.priceModifierCents ? (
+          <span className="numeral flex-none text-[0.76rem] font-bold text-ink-soft">
+            +{formatPrice(option.priceModifierCents)}
+          </span>
+        ) : null}
+      </button>
+
+      <AnimatePresence initial={false}>
+        {selected ? (
+          <motion.div
+            key="detail"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-3 border-t border-rose-dark/20 px-4 py-3.5">
+              {/* ------------------------------------------------ Count */}
+              <div className="flex items-center justify-between gap-3">
+                <label
+                  htmlFor={inputId}
+                  className="text-[0.66rem] font-bold uppercase tracking-[0.14em] text-ink-faint"
+                >
+                  Брой
+                </label>
+                <div className="flex items-center gap-1">
+                  <Stepper
+                    label={`Намали броя: ${option.label}`}
+                    disabled={count <= DETAIL_COUNT_MIN}
+                    onClick={() =>
+                      onDetail({ count: clampDetailCount(count - 1) })
+                    }
+                  >
+                    <Minus size={13} aria-hidden="true" />
+                  </Stepper>
+                  <input
+                    id={inputId}
+                    type="number"
+                    inputMode="numeric"
+                    min={DETAIL_COUNT_MIN}
+                    max={DETAIL_COUNT_MAX}
+                    value={count}
+                    onChange={(event) => {
+                      const next = Number(event.target.value);
+                      if (event.target.value === "" || !Number.isFinite(next)) {
+                        return;
+                      }
+                      onDetail({ count: clampDetailCount(next) });
+                    }}
+                    aria-label={`Брой: ${option.label}`}
+                    className="numeral w-14 rounded-[2px] border border-line bg-paper px-2 py-1.5 text-center text-[0.86rem] font-bold outline-none focus:border-rose-dark"
+                  />
+                  <Stepper
+                    label={`Увеличи броя: ${option.label}`}
+                    disabled={count >= DETAIL_COUNT_MAX}
+                    onClick={() =>
+                      onDetail({ count: clampDetailCount(count + 1) })
+                    }
+                  >
+                    <Plus size={13} aria-hidden="true" />
+                  </Stepper>
+                </div>
+              </div>
+
+              {/* ------------------------------------------------- Tier */}
+              {tierCount > 1 ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span
+                    id={`decor-${option.key}-tier`}
+                    className="text-[0.66rem] font-bold uppercase tracking-[0.14em] text-ink-faint"
+                  >
+                    Етаж
+                  </span>
+                  <div
+                    role="radiogroup"
+                    aria-labelledby={`decor-${option.key}-tier`}
+                    className="flex flex-wrap gap-1"
+                  >
+                    {[
+                      0,
+                      ...Array.from({ length: tierCount }, (_, i) => i + 1),
+                    ].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={tier === value}
+                        onClick={() => onDetail({ tier: value })}
+                        className={cn(
+                          "min-h-8 rounded-[2px] border px-2.5 text-[0.74rem] font-semibold transition-colors",
+                          tier === value
+                            ? "border-rose-dark bg-rose-dark text-paper"
+                            : "border-line bg-paper text-ink-soft hover:border-line-strong",
+                        )}
+                      >
+                        {value === 0 ? "Всички" : value}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Stepper({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="flex size-8 items-center justify-center rounded-[2px] border border-line bg-paper text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {children}
+    </button>
   );
 }
 
