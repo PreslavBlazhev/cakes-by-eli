@@ -2,7 +2,7 @@ import "./_bootstrap";
 
 import fs from "node:fs";
 import path from "node:path";
-import { eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { categories, galleryItems, productImages, products } from "@/db/schema";
@@ -20,8 +20,15 @@ import { categories, galleryItems, productImages, products } from "@/db/schema";
  * public/demo/CREDITS.md. All of it is demo content: the owner replaces it
  * from the admin panel with real photographs of their own work.
  *
- *   npm run demo:photos
+ *   npm run demo:photos              only fetch what is missing
+ *   npm run demo:photos -- --refresh re-download everything
+ *
+ * This is an authoring tool, run locally, and its output is committed. It is
+ * deliberately NOT part of the deploy: the seed reads the committed JPEGs
+ * straight from public/demo, so a release needs neither network access to
+ * Unsplash nor a writable filesystem outside the persistent disk.
  */
+const refresh = process.argv.slice(2).includes("--refresh");
 
 // Deliberately no browser User-Agent: Unsplash answers 401 to requests that
 // impersonate a browser, and pretending to be one would be the wrong thing to
@@ -106,6 +113,18 @@ async function searchPhotoIds(query: string): Promise<string[]> {
 const JPEG = [0xff, 0xd8, 0xff];
 
 async function download(target: Target): Promise<string | null> {
+  const dir = path.join(process.cwd(), "public", target.dir);
+  const file = `${target.name}.jpg`;
+  const publicPath = `/${target.dir.split(path.sep).join("/")}/${file}`;
+
+  // Already fetched on an earlier run and committed — keep it. Re-downloading
+  // would churn the repository and swap out artwork the owner may have already
+  // reviewed, for no gain.
+  if (!refresh && fs.existsSync(path.join(dir, file))) {
+    console.log(`  = ${publicPath}  (вече съществува, пропуснат)`);
+    return publicPath;
+  }
+
   const ids = await searchPhotoIds(target.query);
   const id = ids.find((candidate) => !usedIds.has(candidate)) ?? ids[0];
 
@@ -133,13 +152,9 @@ async function download(target: Target): Promise<string | null> {
     return null;
   }
 
-  const dir = path.join(process.cwd(), "public", target.dir);
   fs.mkdirSync(dir, { recursive: true });
-
-  const file = `${target.name}.jpg`;
   fs.writeFileSync(path.join(dir, file), bytes);
 
-  const publicPath = `/${target.dir.split(path.sep).join("/")}/${file}`;
   credits.push({
     file: publicPath,
     id,
@@ -175,9 +190,24 @@ async function main() {
     });
     if (!publicPath) continue;
 
+    // Replace only the demo placeholder. A photograph the owner uploaded
+    // herself lives under /uploads and must survive this script.
     await db
       .delete(productImages)
-      .where(eq(productImages.productId, product.id));
+      .where(
+        and(
+          eq(productImages.productId, product.id),
+          like(productImages.path, "/demo/%"),
+        ),
+      );
+
+    const [already] = await db
+      .select({ id: productImages.id })
+      .from(productImages)
+      .where(eq(productImages.productId, product.id))
+      .limit(1);
+    if (already) continue;
+
     await db.insert(productImages).values({
       productId: product.id,
       path: publicPath,
@@ -238,6 +268,25 @@ async function main() {
 
   /* -------------------------------------------------------- Credits */
   const creditsFile = path.join(process.cwd(), "public", "demo", "CREDITS.md");
+
+  if (credits.length === 0) {
+    console.log(
+      "\n✓ Готово. Всички снимки вече бяха налични — CREDITS.md е непроменен.\n",
+    );
+    process.exit(0);
+  }
+
+  // Only the freshly downloaded files are in `credits`; the attributions for
+  // everything that was skipped still have to be honoured, so the existing
+  // table is carried over rather than truncated.
+  const kept = fs.existsSync(creditsFile)
+    ? [...fs.readFileSync(creditsFile, "utf8").matchAll(/^\| `([^`]+)` \| (\S+) \|$/gm)]
+        .filter(([, file]) => !credits.some((c) => c.file === file))
+        .map(([, file, page]) => ({ file, id: "", page }))
+    : [];
+
+  const rows = [...kept, ...credits].sort((a, b) => a.file.localeCompare(b.file));
+
   fs.writeFileSync(
     creditsFile,
     [
@@ -252,13 +301,15 @@ async function main() {
       "",
       "| Файл | Unsplash |",
       "| --- | --- |",
-      ...credits.map((c) => `| \`${c.file}\` | ${c.page} |`),
+      ...rows.map((c) => `| \`${c.file}\` | ${c.page} |`),
       "",
     ].join("\n"),
     "utf8",
   );
 
-  console.log(`\n✓ Готово. ${credits.length} снимки, произходът е записан в public/demo/CREDITS.md\n`);
+  console.log(
+    `\n✓ Готово. ${credits.length} нови снимки, ${rows.length} общо в public/demo/CREDITS.md\n`,
+  );
   process.exit(0);
 }
 

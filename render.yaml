@@ -4,8 +4,16 @@
 # снимки — точно това, което Render дава директно. Създайте Blueprint от този
 # файл, попълнете маркираните променливи и деплойнете.
 #
-# След първия деплой: `npm run db:seed` от Render Shell, за да се създадат
-# категориите, видовете десерти и админ акаунтът.
+# Деплоят е самодостатъчен — нищо не се пуска ръчно от Render Shell:
+#
+#   build      npm ci  →  db:migrate  →  next build
+#   pre-deploy db:migrate  →  db:seed  →  db:verify
+#   start      npm start
+#
+# Миграциите са в build командата, защото `next build` чете от базата през
+# generateMetadata(); без тях билдът пада с „relation site_settings does not
+# exist“. Повтарят се и в pre-deploy, за да е приложена схемата и когато билдът
+# е дошъл от кеша.
 
 services:
   - type: web
@@ -15,15 +23,21 @@ services:
     region: frankfurt
     branch: main
 
-    buildCommand: npm ci && npm run build
-    # Миграциите се прилагат преди новата версия да поеме трафик. Drizzle пази
-    # кои са изпълнени, така че повторното пускане е безопасно.
-    preDeployCommand: npm run db:migrate
+    buildCommand: npm ci && npm run db:migrate && npm run build
+
+    # Изпълнява се след билда и преди новата версия да поеме трафик. Seed-ът е
+    # идемпотентен: попълва само липсващото и не пипа редактирано от админа
+    # съдържание. db:verify спира деплоя, ако базата е останала празна — така
+    # Render запазва предишната версия вместо да пусне кух сайт.
+    preDeployCommand: npm run db:migrate && npm run db:seed && npm run db:verify
+
     startCommand: npm start
 
     healthCheckPath: /contacts
 
     # Качените от админа снимки трябва да преживеят рестарт и нов деплой.
+    # Само те живеят тук. Демо снимките (public/demo) са в Git и идват заедно с
+    # билда — затова seed-ът не пише нищо извън този диск.
     disk:
       name: uploads
       mountPath: /opt/render/project/src/public/uploads

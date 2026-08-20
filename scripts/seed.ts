@@ -35,28 +35,38 @@ import {
 } from "./product-artwork";
 
 /**
- * Idempotent seed.
+ * Idempotent seed — safe to run on every deploy.
  *
- * By default it only fills in what is missing, so running it against a live
- * database never overwrites content the owner has edited. The flags below opt
- * into the destructive behaviour explicitly.
+ * The contract is deliberately narrow: the seed creates the initial catalogue
+ * and configurator definitions when they are missing, and never overwrites
+ * business data that the owner has edited from the admin panel. Re-running it
+ * against a live database is therefore a no-op apart from repairing gaps.
+ *
+ * Destructive behaviour is opt-in only, through the flags below, and none of
+ * them is used by the Render deploy.
  *
  *   --demo-prices     apply the example prices from seed-data.ts
  *   --reset-config    re-sync the configurator definitions (drops customisation
  *                     groups/options/rules for the seeded dessert types)
  *   --force-content   overwrite site settings and working hours
+ *   --force-admin     rewrite the admin password hash from the environment
  *   --no-demo         skip demo products and gallery artwork
  */
 const flags = new Set(process.argv.slice(2));
 const withDemoPrices = flags.has("--demo-prices");
 const resetConfig = flags.has("--reset-config");
 const forceContent = flags.has("--force-content");
+const forceAdmin = flags.has("--force-admin");
 const skipDemo = flags.has("--no-demo");
 
-const log = (message: string) => console.log(`  ${message}`);
+/**
+ * One line per step, prefixed so it is greppable in Render's deploy log.
+ * Nothing here may include a password hash, an API key or a connection string.
+ */
+const log = (message: string) => console.log(`[seed] ${message}`);
 
 async function main() {
-  console.log("\n▸ Seed за Cakes by ELI\n");
+  log("Starting...");
 
   await seedSettings();
   await seedWorkingHours();
@@ -69,16 +79,19 @@ async function main() {
     await backfillProductArtwork();
     await seedCategoryArtwork();
     await seedDemoGallery(categoryIds);
+    log(
+      `Demo imagery: ${artwork.photos} committed photos / ` +
+        `${artwork.generated} generated illustrations`,
+    );
+  } else {
+    log("Demo content: skipped (--no-demo)");
   }
-
-  console.log("\n✓ Seed приключи.\n");
 
   if (!withDemoPrices) {
-    console.log(
-      "  Бележка: цените са оставени празни, за да не се показват измислени суми.\n" +
-        "  Стартирайте `npm run db:seed -- --demo-prices` за примерни цени в разработка.\n",
-    );
+    log("Prices: left empty on purpose — set them from the admin panel");
   }
+
+  log("Completed successfully");
   process.exit(0);
 }
 
@@ -91,7 +104,7 @@ async function seedSettings() {
     .where(eq(siteSettings.id, 1));
 
   if (existing.length > 0 && !forceContent) {
-    log("Настройките вече съществуват — пропуснати.");
+    log("Site settings: existing");
     return;
   }
 
@@ -99,10 +112,10 @@ async function seedSettings() {
 
   if (existing.length === 0) {
     await db.insert(siteSettings).values(values);
-    log("Настройките на сайта са създадени.");
+    log("Site settings: created");
   } else {
     await db.update(siteSettings).set(values).where(eq(siteSettings.id, 1));
-    log("Настройките на сайта са презаписани (--force-content).");
+    log("Site settings: overwritten (--force-content)");
   }
 }
 
@@ -110,7 +123,7 @@ async function seedWorkingHours() {
   const existing = await db.select({ weekday: workingHours.weekday }).from(workingHours);
 
   if (existing.length > 0 && !forceContent) {
-    log("Работното време вече е зададено — пропуснато.");
+    log("Working hours: existing");
     return;
   }
 
@@ -118,7 +131,7 @@ async function seedWorkingHours() {
 
   await db.insert(workingHours).values(DEFAULT_WORKING_HOURS);
   log(
-    "Работното време е попълнено с примерни стойности — потвърдете ги с клиента.",
+    `Working hours: ${DEFAULT_WORKING_HOURS.length} defaults written — confirm them with the owner`,
   );
 }
 
@@ -139,7 +152,9 @@ async function seedCategories(): Promise<Map<string, string>> {
     created += 1;
   }
 
-  log(`Категории: ${created} добавени, ${bySlug.size} общо.`);
+  log(
+    `Categories: ${created} created / ${existing.length} existing / ${bySlug.size} total`,
+  );
   return bySlug;
 }
 
@@ -151,8 +166,26 @@ async function seedDessertTypes(
     .from(dessertTypes);
   const bySlug = new Map(existing.map((d) => [d.slug, d.id]));
 
+  // A dessert type whose customisation groups are missing is what an
+  // interrupted seed leaves behind — the type row is committed, the groups are
+  // not, and the configurator then offers a dessert with no steps. Those are
+  // repaired below; types that already carry groups are never touched, because
+  // the owner may have edited them.
+  const groupCounts = new Map<string, number>(
+    (
+      await db
+        .select({
+          dessertTypeId: customizationGroups.dessertTypeId,
+          total: sql<number>`count(*)::int`,
+        })
+        .from(customizationGroups)
+        .groupBy(customizationGroups.dessertTypeId)
+    ).map((row) => [row.dessertTypeId, row.total]),
+  );
+
   let created = 0;
   let resynced = 0;
+  let repaired = 0;
 
   for (const [index, type] of DESSERT_TYPES.entries()) {
     let typeId = bySlug.get(type.slug);
@@ -189,6 +222,13 @@ async function seedDessertTypes(
         .delete(customizationRules)
         .where(eq(customizationRules.dessertTypeId, typeId));
       resynced += 1;
+    } else if ((groupCounts.get(typeId) ?? 0) === 0) {
+      // Left half-written by an interrupted run — finish the job. Stale rules
+      // from that same run would otherwise duplicate, so they go first.
+      await db
+        .delete(customizationRules)
+        .where(eq(customizationRules.dessertTypeId, typeId));
+      repaired += 1;
     } else {
       continue;
     }
@@ -196,11 +236,19 @@ async function seedDessertTypes(
     await insertConfiguration(typeId, type);
   }
 
+  const parts = [`${created} created`, `${existing.length} existing`];
+  if (repaired > 0) parts.push(`${repaired} repaired`);
+  if (resynced > 0) parts.push(`${resynced} re-synced`);
+  log(`Dessert types: ${parts.join(" / ")} / ${bySlug.size} total`);
   log(
-    `Видове десерти: ${created} добавени${resynced > 0 ? `, ${resynced} пресинхронизирани` : ""}, ${bySlug.size} общо.`,
+    `Customization groups: ${config.groups} created, ` +
+      `options: ${config.options} created, rules: ${config.rules} created`,
   );
   return bySlug;
 }
+
+/** Rows written by insertConfiguration, tallied for the deploy log. */
+const config = { groups: 0, options: 0, rules: 0 };
 
 async function insertConfiguration(
   typeId: string,
@@ -227,7 +275,11 @@ async function insertConfiguration(
       })
       .returning({ id: customizationGroups.id });
 
+    config.groups += 1;
+
     if (!group.options?.length) continue;
+
+    config.options += group.options.length;
 
     await db.insert(customizationOptions).values(
       group.options.map((option, optionIndex) => ({
@@ -246,6 +298,8 @@ async function insertConfiguration(
   }
 
   if (type.rules?.length) {
+    config.rules += type.rules.length;
+
     await db.insert(customizationRules).values(
       type.rules.map((rule) => ({
         dessertTypeId: typeId,
@@ -262,9 +316,7 @@ async function insertConfiguration(
 
 async function seedAdmin() {
   if (!env.ADMIN_EMAIL || !env.ADMIN_PASSWORD_HASH) {
-    log(
-      "Админ акаунт: пропуснат (ADMIN_EMAIL / ADMIN_PASSWORD_HASH не са зададени).",
-    );
+    log("Admin: skipped (ADMIN_EMAIL / ADMIN_PASSWORD_HASH not set)");
     return;
   }
 
@@ -281,6 +333,15 @@ async function seedAdmin() {
     .where(sql`lower(${adminUsers.email}) = ${email}`);
 
   if (existing.length > 0) {
+    // The account is business data once it exists. Silently re-applying the
+    // hash from the environment on every deploy would undo a password the
+    // owner changed herself, and would resurrect the account's original
+    // password from a stale Render variable — so rotation is opt-in.
+    if (!forceAdmin) {
+      log(`Admin: existing (${email})`);
+      return;
+    }
+
     await db
       .update(adminUsers)
       .set({
@@ -289,7 +350,7 @@ async function seedAdmin() {
         updatedAt: new Date(),
       })
       .where(eq(adminUsers.id, existing[0].id));
-    log(`Админ акаунт: ${email} — паролата е обновена.`);
+    log(`Admin: password rotated (${email}, --force-admin)`);
     return;
   }
 
@@ -298,7 +359,7 @@ async function seedAdmin() {
     passwordHash: env.ADMIN_PASSWORD_HASH,
     name: env.ADMIN_NAME ?? "Администратор",
   });
-  log(`Админ акаунт: ${email} — създаден.`);
+  log(`Admin: created (${email})`);
 }
 
 async function seedDemoProducts(
@@ -307,7 +368,7 @@ async function seedDemoProducts(
 ) {
   const existing = await db.select({ id: products.id }).from(products).limit(1);
   if (existing.length > 0) {
-    log("Продукти вече съществуват — демо продуктите са пропуснати.");
+    log("Products: existing");
     return;
   }
 
@@ -346,15 +407,37 @@ async function seedDemoProducts(
     created += 1;
   }
 
-  log(`Демо продукти: ${created} добавени, със заместващи илюстрации.`);
+  log(`Products: ${created} created`);
 }
 
 /**
- * Draws a placeholder illustration for one product and attaches it.
+ * Resolves the version-controlled demo photograph for an asset, if there is
+ * one.
+ *
+ * Render mounts a persistent disk at public/uploads and nowhere else, and the
+ * pre-deploy step runs on a filesystem that is thrown away before the release
+ * goes live. Anything the seed writes into public/demo at deploy time would
+ * therefore vanish and leave the catalogue full of broken images. The JPEGs
+ * committed under public/demo ship inside the build itself, so preferring them
+ * is what makes the demo content survive a redeploy — the generated SVG stays
+ * as a fallback for assets that have no photograph yet.
+ */
+function committedPhoto(dir: string, name: string): string | null {
+  const file = `${name}.jpg`;
+  const onDisk = path.join(process.cwd(), "public", "demo", dir, file);
+  return fs.existsSync(onDisk) ? `/demo/${dir}/${file}` : null;
+}
+
+/** Counts how the demo imagery was resolved, for the deploy log. */
+const artwork = { photos: 0, generated: 0 };
+
+/**
+ * Attaches the demo image for one product.
  *
  * A catalogue of empty coloured rectangles reads as broken, so every demo
- * product ships with an original vector illustration of its dessert kind
- * until a real photograph replaces it from the admin panel.
+ * product ships with imagery — the committed photograph when there is one, an
+ * original vector illustration of its dessert kind otherwise — until a real
+ * photograph replaces it from the admin panel.
  */
 async function writeProductArtwork(
   productId: string,
@@ -362,19 +445,27 @@ async function writeProductArtwork(
   name: string,
   dessertTypeSlug: string | null,
 ) {
-  const dir = path.join(process.cwd(), "public", "demo", "products");
-  fs.mkdirSync(dir, { recursive: true });
+  let publicPath = committedPhoto("products", slug);
 
-  const file = `${slug}.svg`;
-  fs.writeFileSync(
-    path.join(dir, file),
-    renderProductArtwork(artworkKindForDessert(dessertTypeSlug), name),
-    "utf8",
-  );
+  if (publicPath) {
+    artwork.photos += 1;
+  } else {
+    const dir = path.join(process.cwd(), "public", "demo", "products");
+    fs.mkdirSync(dir, { recursive: true });
+
+    const file = `${slug}.svg`;
+    fs.writeFileSync(
+      path.join(dir, file),
+      renderProductArtwork(artworkKindForDessert(dessertTypeSlug), name),
+      "utf8",
+    );
+    publicPath = `/demo/products/${file}`;
+    artwork.generated += 1;
+  }
 
   await db.insert(productImages).values({
     productId,
-    path: `/demo/products/${file}`,
+    path: publicPath,
     alt: name,
     sortOrder: 0,
   });
@@ -426,7 +517,7 @@ async function backfillProductArtwork() {
   }
 
   if (created > 0) {
-    log(`Илюстрации на продукти: ${created} добавени за съществуващи демо продукти.`);
+    log(`Product images: ${created} backfilled`);
   }
 }
 
@@ -441,28 +532,39 @@ async function seedCategoryArtwork() {
     })
     .from(categories);
 
-  const dir = path.join(process.cwd(), "public", "demo", "categories");
-  fs.mkdirSync(dir, { recursive: true });
-
   let created = 0;
   for (const category of rows) {
     if (category.imagePath) continue;
 
-    const file = `${category.slug}.svg`;
-    fs.writeFileSync(
-      path.join(dir, file),
-      renderProductArtwork(artworkKindForCategory(category.slug), category.name),
-      "utf8",
-    );
+    let publicPath = committedPhoto("categories", category.slug);
+
+    if (publicPath) {
+      artwork.photos += 1;
+    } else {
+      const dir = path.join(process.cwd(), "public", "demo", "categories");
+      fs.mkdirSync(dir, { recursive: true });
+
+      const file = `${category.slug}.svg`;
+      fs.writeFileSync(
+        path.join(dir, file),
+        renderProductArtwork(
+          artworkKindForCategory(category.slug),
+          category.name,
+        ),
+        "utf8",
+      );
+      publicPath = `/demo/categories/${file}`;
+      artwork.generated += 1;
+    }
 
     await db
       .update(categories)
-      .set({ imagePath: `/demo/categories/${file}`, updatedAt: new Date() })
+      .set({ imagePath: publicPath, updatedAt: new Date() })
       .where(eq(categories.id, category.id));
     created += 1;
   }
 
-  if (created > 0) log(`Илюстрации на категории: ${created} добавени.`);
+  log(`Category images: ${created} attached`);
 }
 
 async function seedDemoGallery(categoryIds: Map<string, string>) {
@@ -471,24 +573,32 @@ async function seedDemoGallery(categoryIds: Map<string, string>) {
     .from(galleryItems)
     .limit(1);
   if (existing.length > 0) {
-    log("Галерията вече има съдържание — демо снимките са пропуснати.");
+    log("Gallery: existing");
     return;
   }
 
-  const dir = path.join(process.cwd(), "public", "demo");
-  fs.mkdirSync(dir, { recursive: true });
-
   let created = 0;
   for (const [index, item] of DEMO_GALLERY.entries()) {
-    const file = `gallery-${index + 1}.svg`;
-    fs.writeFileSync(
-      path.join(dir, file),
-      renderDemoArtwork(index, item.caption),
-      "utf8",
-    );
+    let publicPath = committedPhoto("gallery", `photo-${index + 1}`);
+
+    if (publicPath) {
+      artwork.photos += 1;
+    } else {
+      const dir = path.join(process.cwd(), "public", "demo");
+      fs.mkdirSync(dir, { recursive: true });
+
+      const file = `gallery-${index + 1}.svg`;
+      fs.writeFileSync(
+        path.join(dir, file),
+        renderDemoArtwork(index, item.caption),
+        "utf8",
+      );
+      publicPath = `/demo/${file}`;
+      artwork.generated += 1;
+    }
 
     await db.insert(galleryItems).values({
-      path: `/demo/${file}`,
+      path: publicPath,
       caption: item.caption,
       categoryId: categoryIds.get(item.categorySlug) ?? null,
       width: 900,
@@ -500,12 +610,13 @@ async function seedDemoGallery(categoryIds: Map<string, string>) {
     created += 1;
   }
 
-  log(
-    `Демо галерия: ${created} изображения (собствени SVG композиции, за подмяна с реални снимки).`,
-  );
+  log(`Gallery: ${created} created`);
 }
 
 main().catch((error) => {
-  console.error("\n✗ Seed се провали:", error);
+  // A non-zero exit is what stops Render from promoting a release whose
+  // database never got its content.
+  log("FAILED");
+  console.error(error);
   process.exit(1);
 });
