@@ -19,6 +19,7 @@ import type {
   DessertTypeConfig,
 } from "@/features/configurator/types";
 import { buildPreviewModel } from "@/features/configurator/preview/model";
+import type { PreviewModel } from "@/features/configurator/preview/model";
 import { DessertPreview } from "@/features/configurator/preview/DessertPreview";
 import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/format";
@@ -65,7 +66,7 @@ export function CustomBuilder({
   const activeStep = currentStepIndex === -1 ? steps.length : currentStepIndex + 1;
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(310px,0.72fr)] lg:items-start lg:gap-14">
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.78fr)] lg:items-start lg:gap-14">
       {/* ------------------------------------------- Mobile sticky preview */}
       <div className="sticky top-[72px] z-30 -mx-4 mb-2 border-y border-line bg-cream/97 px-4 py-3 backdrop-blur lg:hidden">
         <details className="group">
@@ -102,12 +103,10 @@ export function CustomBuilder({
               className="flex-none text-ink-faint transition-transform group-open:rotate-180"
             />
           </summary>
-          <div className="mt-4 border-t border-line pt-4">
-            <div className="frame mx-auto aspect-square w-full max-w-[260px] bg-paper">
-              <DessertPreview model={model} />
-            </div>
+          <div className="mt-4 border-t border-line pt-2">
+            <ViewPair model={model} />
             {summary.length > 0 ? (
-              <ChoiceList lines={summary} className="mt-4" />
+              <ChoiceList lines={summary} className="mt-3" />
             ) : null}
           </div>
         </details>
@@ -186,9 +185,7 @@ export function CustomBuilder({
             </span>
           </div>
 
-          <div className="aspect-square w-full p-4">
-            <DessertPreview model={model} />
-          </div>
+          <ViewPair model={model} />
 
           <p className="border-t border-line px-5 py-3.5 text-center font-[family-name:var(--font-display)] text-[1.25rem]">
             {dessert.name}
@@ -206,6 +203,37 @@ export function CustomBuilder({
 }
 
 /* ------------------------------------------------------------------ */
+
+/**
+ * The dessert from two angles at once.
+ *
+ * The elevation can only ever draw the half facing the viewer, so a customer
+ * arranging fruit around a cake had no way to check the back. Showing the plan
+ * view beside it turns "where did my blueberries go" into something you can
+ * simply look at — both drawings are generated from the same placement data,
+ * so they can never disagree.
+ */
+function ViewPair({ model }: { model: PreviewModel }) {
+  return (
+    <div className="grid grid-cols-2 divide-x divide-line">
+      {(
+        [
+          ["side", "Отстрани"],
+          ["top", "Отгоре"],
+        ] as const
+      ).map(([view, label]) => (
+        <figure key={view} className="px-2 pb-2 pt-3">
+          <div className="aspect-square w-full">
+            <DessertPreview model={model} view={view} />
+          </div>
+          <figcaption className="mt-1 text-center text-[0.6rem] uppercase tracking-[0.18em] text-ink-faint">
+            {label}
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
 
 /** The running list of what has been chosen so far. */
 function ChoiceList({

@@ -170,10 +170,11 @@ export function Leaf() {
   );
 }
 
+/** A sugar pearl needs an edge: unrimmed cream on cream frosting is invisible. */
 export function Pearl({ color = "#f3e6d2" }: { color?: string }) {
   return (
     <g>
-      <circle r="3.4" fill={color} />
+      <circle r="4" fill={color} stroke="#b8a084" strokeWidth="0.7" />
       <circle cx="-1.1" cy="-1.1" r="1.1" fill="#fff" opacity="0.75" />
     </g>
   );

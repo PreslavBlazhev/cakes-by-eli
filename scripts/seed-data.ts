@@ -228,6 +228,63 @@ const DECORATIONS: SeedOptionInput[] = [
   { key: "candles", label: "Свещички", previewValue: "candles" },
 ];
 
+/** Decoration tokens that are individual objects and can be positioned. */
+const PLACEABLE_DECORATIONS = DECORATIONS.filter(
+  (d) => d.key !== "sprinkles" && d.key !== "candles",
+).map((d) => d.key);
+
+/**
+ * How the decorations are arranged on the dessert.
+ *
+ * These feed the `decorPlacement` preview channel, which both the elevation
+ * and the plan view read, so the customer positions the fruit once and sees
+ * the result from both angles.
+ */
+const DECOR_PLACEMENT: SeedOptionInput[] = [
+  {
+    key: "top",
+    label: "Отгоре",
+    description: "Събрана на горната повърхност, обърната към вас.",
+    previewValue: "top",
+  },
+  {
+    key: "crown",
+    label: "Венец по ръба",
+    description: "Равномерен пръстен около целия горен ръб.",
+    previewValue: "crown",
+  },
+  {
+    key: "cascade",
+    label: "Каскада",
+    description: "Спуска се диагонално по етажите надолу.",
+    previewValue: "cascade",
+  },
+  {
+    key: "scattered",
+    label: "Разпръсната",
+    description: "Свободно разпределена по всички етажи.",
+    previewValue: "scattered",
+  },
+  {
+    key: "base",
+    label: "В основата",
+    description: "Събрана около долния етаж.",
+    previewValue: "base",
+  },
+  {
+    key: "sides",
+    label: "По стените",
+    description: "Прикрепена по страните на етажите.",
+    previewValue: "sides",
+  },
+];
+
+const DECOR_DENSITY: SeedOptionInput[] = [
+  { key: "sparse", label: "Пестеливо", description: "Единични акценти.", previewValue: "sparse" },
+  { key: "medium", label: "Умерено", description: "Балансирано количество.", previewValue: "medium" },
+  { key: "rich", label: "Богато", description: "Плътно покритие.", previewValue: "rich" },
+];
+
 /* ------------------------------------------------------------------ *
  * Dessert types and their configurators
  * ------------------------------------------------------------------ */
@@ -364,6 +421,23 @@ export const DESSERT_TYPES: SeedDessertType[] = [
         options: DECORATIONS,
       },
       {
+        key: "decorPlacement",
+        label: "Разположение на декорацията",
+        step: 5,
+        previewChannel: "decorPlacement",
+        helpText:
+          "Къде да стоят избраните елементи. Вижте резултата и в двата изгледа вдясно.",
+        options: DECOR_PLACEMENT,
+      },
+      {
+        key: "decorDensity",
+        label: "Плътност",
+        step: 5,
+        previewChannel: "decorDensity",
+        helpText: "Колко нагъсто да бъдат подредени.",
+        options: DECOR_DENSITY,
+      },
+      {
         key: "topper",
         label: "Топер",
         step: 6,
@@ -396,6 +470,27 @@ export const DESSERT_TYPES: SeedDessertType[] = [
       },
     ],
     rules: [
+      {
+        targetType: "GROUP",
+        targetKey: "decorPlacement",
+        whenGroupKey: "decoration",
+        whenOptionKeys: PLACEABLE_DECORATIONS,
+      },
+      {
+        targetType: "GROUP",
+        targetKey: "decorDensity",
+        whenGroupKey: "decoration",
+        whenOptionKeys: PLACEABLE_DECORATIONS,
+      },
+      {
+        // A cascade needs tiers to cascade down.
+        targetType: "OPTION",
+        targetKey: "cascade",
+        targetGroupKey: "decorPlacement",
+        mode: "HIDE_WHEN",
+        whenGroupKey: "tiers",
+        whenOptionKeys: ["1"],
+      },
       {
         targetType: "GROUP",
         targetKey: "dripColor",
@@ -967,6 +1062,23 @@ export const DESSERT_TYPES: SeedDessertType[] = [
         options: DECORATIONS.slice(0, 8),
       },
       {
+        key: "decorPlacement",
+        label: "Разположение на декорацията",
+        step: 4,
+        previewChannel: "decorPlacement",
+        helpText:
+          "Къде да стоят избраните елементи. Вижте резултата и в двата изгледа вдясно.",
+        options: DECOR_PLACEMENT,
+      },
+      {
+        key: "decorDensity",
+        label: "Плътност",
+        step: 4,
+        previewChannel: "decorDensity",
+        helpText: "Колко нагъсто да бъдат подредени.",
+        options: DECOR_DENSITY,
+      },
+      {
         key: "message",
         label: "Надпис",
         step: 5,
@@ -974,6 +1086,29 @@ export const DESSERT_TYPES: SeedDessertType[] = [
         inputType: "TEXT",
         maxLength: 30,
         placeholder: "Напр. Обичам те",
+      },
+    ],
+    rules: [
+      {
+        targetType: "GROUP",
+        targetKey: "decorPlacement",
+        whenGroupKey: "decoration",
+        whenOptionKeys: PLACEABLE_DECORATIONS,
+      },
+      {
+        targetType: "GROUP",
+        targetKey: "decorDensity",
+        whenGroupKey: "decoration",
+        whenOptionKeys: PLACEABLE_DECORATIONS,
+      },
+      {
+        // Single-tier: a cascade has nowhere to fall.
+        targetType: "OPTION",
+        targetKey: "cascade",
+        targetGroupKey: "decorPlacement",
+        mode: "HIDE_WHEN",
+        whenGroupKey: "decoration",
+        whenOptionKeys: PLACEABLE_DECORATIONS,
       },
     ],
   },

@@ -29,6 +29,13 @@ import {
 } from "./geometry";
 import type { CakeShape, TierGeometry } from "./geometry";
 import {
+  buildPlacement,
+  isDensity,
+  isPlacementMode,
+  isVisibleFromSide,
+  projectSide,
+} from "./placement";
+import {
   Candle,
   DecorItem,
   decorationGlyph,
@@ -59,11 +66,21 @@ export function CakePreview({ model }: { model: PreviewModel }) {
   const dripColor = channelColor(model, "dripColor", "#5a3524");
   const ribbon = channelValue(model, "ribbon", "none");
   const decorations = channelList(model, "decoration");
+  const rawPlacement = channelValue(model, "decorPlacement", "top");
+  const rawDensity = channelValue(model, "decorDensity", "medium");
+  const placementMode = isPlacementMode(rawPlacement) ? rawPlacement : "top";
+  const density = isDensity(rawDensity) ? rawDensity : "medium";
   const topper = channelValue(model, "topper", "none");
   const topperText = channelText(model, "topperText");
   const message = channelText(model, "message");
 
   const tiers = buildTiers(isHeart ? 1 : tierCount, shape);
+  const slots = buildPlacement({
+    tokens: decorations,
+    tierCount: tiers.length,
+    mode: placementMode,
+    density,
+  });
   const topTier = tiers[tiers.length - 1];
   const bottomTier = tiers[0];
 
@@ -244,34 +261,31 @@ export function CakePreview({ model }: { model: PreviewModel }) {
         ) : null}
       </AnimatePresence>
 
-      {/* Decorations on the top tier */}
+      {/*
+        Decorations, placed across every tier.
+        Slots come from the shared placement model, so what is drawn here is
+        the same arrangement the plan view draws — items on the far side are
+        simply hidden, because the cake body is in front of them.
+      */}
       <AnimatePresence initial={false}>
-        {decorations
-          .filter((d) => d !== "sprinkles" && d !== "candles")
-          .slice(0, 5)
-          .map((token, tokenIndex, list) => {
-            const perToken = list.length > 3 ? 2 : 3;
-            const positions = arcPositions(topTier, perToken, 0.62);
-            const glyph = decorationGlyph(token, frosting);
-            if (!glyph) return null;
+        {slots.filter(isVisibleFromSide).map((slot) => {
+          const glyph = decorationGlyph(slot.token, frosting);
+          if (!glyph) return null;
+          const pos = projectSide(slot, tiers);
 
-            return (
-              <Fragment key={token}>
-                {positions.map((pos, i) => (
-                  <DecorItem
-                    key={`${token}-${i}`}
-                    x={pos.x + (tokenIndex - (list.length - 1) / 2) * 6}
-                    y={pos.y - 4}
-                    scale={pos.scale}
-                    rotate={(seeded(tokenIndex * 5 + i) - 0.5) * 28}
-                    delay={i * 0.05 + tokenIndex * 0.03}
-                  >
-                    {glyph}
-                  </DecorItem>
-                ))}
-              </Fragment>
-            );
-          })}
+          return (
+            <DecorItem
+              key={slot.id}
+              x={pos.x}
+              y={pos.y - (slot.surface === "side" ? 0 : 4)}
+              scale={pos.scale}
+              rotate={(seeded(slot.order * 5 + 1) - 0.5) * 26}
+              delay={slot.order * 0.035}
+            >
+              {glyph}
+            </DecorItem>
+          );
+        })}
       </AnimatePresence>
 
       <AnimatePresence>

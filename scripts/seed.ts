@@ -186,6 +186,7 @@ async function seedDessertTypes(
   let created = 0;
   let resynced = 0;
   let repaired = 0;
+  let extended = 0;
 
   for (const [index, type] of DESSERT_TYPES.entries()) {
     let typeId = bySlug.get(type.slug);
@@ -230,6 +231,10 @@ async function seedDessertTypes(
         .where(eq(customizationRules.dessertTypeId, typeId));
       repaired += 1;
     } else {
+      // The type is configured and edited — add only what the code knows
+      // about and the database has never seen. This is how a new option
+      // group ships to a live site without discarding the owner's work.
+      extended += await backfillGroups(typeId, type);
       continue;
     }
 
@@ -239,12 +244,157 @@ async function seedDessertTypes(
   const parts = [`${created} created`, `${existing.length} existing`];
   if (repaired > 0) parts.push(`${repaired} repaired`);
   if (resynced > 0) parts.push(`${resynced} re-synced`);
+  if (extended > 0) parts.push(`${extended} extended`);
   log(`Dessert types: ${parts.join(" / ")} / ${bySlug.size} total`);
   log(
     `Customization groups: ${config.groups} created, ` +
       `options: ${config.options} created, rules: ${config.rules} created`,
   );
   return bySlug;
+}
+
+/** Writes one group and its options. Shared by the full and partial paths. */
+async function insertGroup(
+  typeId: string,
+  group: (typeof DESSERT_TYPES)[number]["groups"][number],
+  sortOrder: number,
+) {
+  const [groupRow] = await db
+    .insert(customizationGroups)
+    .values({
+      dessertTypeId: typeId,
+      key: group.key,
+      label: group.label,
+      helpText: group.helpText ?? "",
+      inputType: group.inputType ?? "SINGLE",
+      isRequired: group.isRequired ?? false,
+      minSelect: group.minSelect ?? (group.isRequired ? 1 : 0),
+      maxSelect: group.maxSelect ?? (group.inputType === "MULTI" ? 3 : 1),
+      maxLength: group.maxLength ?? null,
+      placeholder: group.placeholder ?? "",
+      previewChannel: group.previewChannel ?? "",
+      step: group.step,
+      sortOrder,
+    })
+    .returning({ id: customizationGroups.id });
+
+  config.groups += 1;
+
+  if (!group.options?.length) return;
+
+  config.options += group.options.length;
+
+  await db.insert(customizationOptions).values(
+    group.options.map((option, optionIndex) => ({
+      groupId: groupRow.id,
+      key: option.key,
+      label: option.label,
+      description: option.description ?? "",
+      priceModifierCents: withDemoPrices ? (option.demoPriceCents ?? null) : null,
+      previewValue: option.previewValue ?? "",
+      swatchColor: option.swatchColor ?? null,
+      sortOrder: optionIndex,
+    })),
+  );
+}
+
+/**
+ * Adds configurator groups that exist in the code but not yet in the database.
+ *
+ * Groups are matched by key, never by content, so a group the owner has
+ * renamed or whose options she has edited is left completely alone — only a
+ * key that has never been seen is inserted. Rules are added the same way,
+ * compared on their whole shape, and only once every group they mention is
+ * present, so a rule can never point at a group that is not there.
+ *
+ * Returns the number of dessert types that gained something.
+ */
+async function backfillGroups(
+  typeId: string,
+  type: (typeof DESSERT_TYPES)[number],
+): Promise<number> {
+  const existingGroups = await db
+    .select({ key: customizationGroups.key })
+    .from(customizationGroups)
+    .where(eq(customizationGroups.dessertTypeId, typeId));
+
+  const known = new Set(existingGroups.map((g) => g.key));
+  const missing = type.groups.filter((group) => !known.has(group.key));
+
+  if (missing.length === 0) return 0;
+
+  for (const group of missing) {
+    // Keep the code's ordering: place the new group where it was authored.
+    const sortOrder = type.groups.indexOf(group);
+    await insertGroup(typeId, group, sortOrder);
+    known.add(group.key);
+  }
+
+  await backfillRules(typeId, type, known);
+
+  log(
+    `  ${type.slug}: added ${missing.length} group(s) — ` +
+      missing.map((g) => g.key).join(", "),
+  );
+  return 1;
+}
+
+async function backfillRules(
+  typeId: string,
+  type: (typeof DESSERT_TYPES)[number],
+  presentGroups: Set<string>,
+) {
+  if (!type.rules?.length) return;
+
+  const existing = await db
+    .select()
+    .from(customizationRules)
+    .where(eq(customizationRules.dessertTypeId, typeId));
+
+  const fingerprint = (rule: {
+    targetType: string;
+    targetKey: string;
+    targetGroupKey: string | null;
+    mode: string;
+    whenGroupKey: string;
+    whenOptionKeys: string[];
+  }) =>
+    [
+      rule.targetType,
+      rule.targetKey,
+      rule.targetGroupKey ?? "",
+      rule.mode,
+      rule.whenGroupKey,
+      [...rule.whenOptionKeys].sort().join("|"),
+    ].join("::");
+
+  const seen = new Set(existing.map(fingerprint));
+
+  const pending = type.rules
+    .map((rule) => ({
+      dessertTypeId: typeId,
+      targetType: rule.targetType,
+      targetKey: rule.targetKey,
+      targetGroupKey: rule.targetGroupKey ?? null,
+      mode: rule.mode ?? ("SHOW_WHEN" as const),
+      whenGroupKey: rule.whenGroupKey,
+      whenOptionKeys: rule.whenOptionKeys,
+    }))
+    .filter((rule) => {
+      if (seen.has(fingerprint(rule))) return false;
+      // Never introduce a rule whose condition or target is missing.
+      const target =
+        rule.targetType === "GROUP" ? rule.targetKey : rule.targetGroupKey;
+      return (
+        presentGroups.has(rule.whenGroupKey) &&
+        (target === null || presentGroups.has(target))
+      );
+    });
+
+  if (pending.length === 0) return;
+
+  await db.insert(customizationRules).values(pending);
+  config.rules += pending.length;
 }
 
 /** Rows written by insertConfiguration, tallied for the deploy log. */
@@ -255,46 +405,7 @@ async function insertConfiguration(
   type: (typeof DESSERT_TYPES)[number],
 ) {
   for (const [groupIndex, group] of type.groups.entries()) {
-    const [groupRow] = await db
-      .insert(customizationGroups)
-      .values({
-        dessertTypeId: typeId,
-        key: group.key,
-        label: group.label,
-        helpText: group.helpText ?? "",
-        inputType: group.inputType ?? "SINGLE",
-        isRequired: group.isRequired ?? false,
-        minSelect: group.minSelect ?? (group.isRequired ? 1 : 0),
-        maxSelect:
-          group.maxSelect ?? (group.inputType === "MULTI" ? 3 : 1),
-        maxLength: group.maxLength ?? null,
-        placeholder: group.placeholder ?? "",
-        previewChannel: group.previewChannel ?? "",
-        step: group.step,
-        sortOrder: groupIndex,
-      })
-      .returning({ id: customizationGroups.id });
-
-    config.groups += 1;
-
-    if (!group.options?.length) continue;
-
-    config.options += group.options.length;
-
-    await db.insert(customizationOptions).values(
-      group.options.map((option, optionIndex) => ({
-        groupId: groupRow.id,
-        key: option.key,
-        label: option.label,
-        description: option.description ?? "",
-        priceModifierCents: withDemoPrices
-          ? (option.demoPriceCents ?? null)
-          : null,
-        previewValue: option.previewValue ?? "",
-        swatchColor: option.swatchColor ?? null,
-        sortOrder: optionIndex,
-      })),
-    );
+    await insertGroup(typeId, group, groupIndex);
   }
 
   if (type.rules?.length) {
