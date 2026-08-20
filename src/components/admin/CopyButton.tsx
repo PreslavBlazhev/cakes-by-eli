@@ -31,7 +31,7 @@ export function CopyButton({
       type="button"
       onClick={copy}
       className={cn(
-        "inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-paper px-3 text-[0.8rem] font-semibold transition-colors hover:border-ink",
+        "inline-flex min-h-9 items-center gap-1.5 rounded-[3px] border border-line bg-paper px-3 text-[0.8rem] font-semibold transition-colors hover:border-ink",
         className,
       )}
     >

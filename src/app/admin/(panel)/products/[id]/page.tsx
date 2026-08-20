@@ -44,7 +44,7 @@ export default async function EditProductPage({ params }: Params) {
             <Link
               href={`/menu/${product.category.slug}/${product.slug}`}
               target="_blank"
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper px-4 text-[0.86rem] font-semibold transition-colors hover:border-ink"
+              className="inline-flex min-h-10 items-center gap-2 rounded-[3px] border border-line bg-paper px-4 text-[0.86rem] font-semibold transition-colors hover:border-ink"
             >
               <ExternalLink size={14} aria-hidden="true" />
               Виж в сайта

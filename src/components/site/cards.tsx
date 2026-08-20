@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/primitives";
 import { cn } from "@/lib/cn";
@@ -8,18 +7,39 @@ import { formatPrice } from "@/lib/format";
 import { AVAILABILITY_LABELS } from "@/lib/labels";
 import type { Category, ProductWithMedia } from "@/server/queries/catalog";
 
-/** Warm gradients used when a category or product has no photograph yet. */
+/**
+ * Catalogue tiles.
+ *
+ * Neither of these is a "card" any more: there is no border, no fill and
+ * no shadow. The photograph is the object, the type sits on the ivory
+ * ground beneath it, and a hairline does the separating. Repeating an
+ * identical bordered rectangle is what made the previous catalogue read
+ * as a template rather than as a patisserie's own book of work.
+ */
+
+/** Warm washes used when a category or product has no photograph yet. */
 const ACCENTS: Record<string, string> = {
-  rose: "linear-gradient(135deg,#e9cec8,#c98791)",
-  chocolate: "linear-gradient(135deg,#dfc0aa,#a95f53)",
-  gold: "linear-gradient(135deg,#d8c6b2,#b6936d)",
-  sage: "linear-gradient(135deg,#cad0bf,#8b947b)",
-  blush: "linear-gradient(135deg,#f0d6cf,#d59fa4)",
+  rose: "linear-gradient(150deg,#e5cdc9,#b57f88)",
+  chocolate: "linear-gradient(150deg,#dcc2ad,#9c5f52)",
+  gold: "linear-gradient(150deg,#dccbb2,#ab8a63)",
+  sage: "linear-gradient(150deg,#ccd1c1,#828a72)",
+  blush: "linear-gradient(150deg,#eed8d1,#cb9aa0)",
 };
 
 function accentFor(accent: string): string {
   return ACCENTS[accent] ?? ACCENTS.rose;
 }
+
+/**
+ * One crop for grid tiles.
+ *
+ * Cycling ratios inside a uniform grid leaves every row with a ragged
+ * baseline, which reads as a bug rather than as an editorial choice. The
+ * variety lives in the layouts instead — the asymmetric split on the home
+ * page, the category band, the masonry gallery — and any caller that
+ * genuinely wants a different crop passes `ratio`.
+ */
+const TILE_RATIO = "aspect-[4/5]";
 
 export function CategoryCard({
   category,
@@ -31,12 +51,9 @@ export function CategoryCard({
   index?: number;
 }) {
   return (
-    <Link
-      href={`/menu/${category.slug}`}
-      className="group flex min-h-[380px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-line bg-paper transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[var(--shadow-card)]"
-    >
+    <Link href={`/menu/${category.slug}`} className="group block">
       <div
-        className="relative h-[210px] overflow-hidden"
+        className={cn("frame", TILE_RATIO)}
         style={
           category.imagePath ? undefined : { background: accentFor(category.accent) }
         }
@@ -47,33 +64,35 @@ export function CategoryCard({
             alt=""
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+            className="object-cover transition-transform duration-[900ms] ease-[var(--ease-out-soft)] group-hover:scale-[1.045]"
           />
         ) : (
           <span
             aria-hidden="true"
-            className="absolute inset-0 flex items-center justify-center font-[family-name:var(--font-display)] text-[5rem] leading-none text-paper/25 transition-transform duration-500 group-hover:scale-110"
+            className="numeral absolute inset-0 flex items-center justify-center text-[4.5rem] text-paper/30"
           >
             {String(index + 1).padStart(2, "0")}
           </span>
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-6">
-        <h3 className="display-3">{category.name}</h3>
-        <p className="mt-2 line-clamp-3 text-[0.9rem] text-ink-soft">
-          {category.description}
-        </p>
-        <span className="mt-auto flex items-center gap-2 pt-5 text-[0.88rem] font-bold text-rose-dark">
-          {typeof productCount === "number" && productCount > 0
-            ? `Виж ${productCount} предложения`
-            : "Разгледай"}
-          <ArrowRight
-            size={15}
-            aria-hidden="true"
-            className="transition-transform duration-300 group-hover:translate-x-1"
-          />
+      <div className="mt-5 flex items-baseline gap-3 border-t border-line pt-4">
+        <span aria-hidden="true" className="numeral text-[0.72rem] text-ink-faint">
+          {String(index + 1).padStart(2, "0")}
         </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="display-4 transition-colors group-hover:text-rose-dark">
+            {category.name}
+          </h3>
+          <p className="mt-1.5 line-clamp-2 text-[0.85rem] leading-relaxed text-ink-soft">
+            {category.description}
+          </p>
+        </div>
+        {typeof productCount === "number" && productCount > 0 ? (
+          <span className="numeral flex-none text-[0.72rem] text-ink-faint">
+            {productCount}
+          </span>
+        ) : null}
       </div>
     </Link>
   );
@@ -82,98 +101,110 @@ export function CategoryCard({
 export function ProductCard({
   product,
   showCategory = false,
+  ratio,
 }: {
   product: ProductWithMedia;
   showCategory?: boolean;
+  /** Overrides the default crop when a layout wants a different one. */
+  ratio?: string;
 }) {
   const image = product.images[0];
   const price = formatPrice(product.basePriceCents);
   const unavailable = product.availability === "UNAVAILABLE";
+  const href = `/menu/${product.category.slug}/${product.slug}`;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-line bg-paper transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[var(--shadow-card)]">
-      <Link
-        href={`/menu/${product.category.slug}/${product.slug}`}
-        className="relative block h-[230px] overflow-hidden"
-        style={image ? undefined : { background: accentFor(product.category.accent) }}
-        aria-label={product.name}
-      >
-        {image ? (
-          <Image
-            src={image.path}
-            alt={image.alt || product.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-          />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="absolute inset-0 flex items-center justify-center px-6 text-center font-[family-name:var(--font-display)] text-[1.6rem] leading-tight text-paper/70"
-          >
-            {product.name}
-          </span>
-        )}
+    <article className="group flex flex-col">
+      {/* Decorative duplicate of the title link: kept out of the tab order
+          and the accessibility tree so each product is announced once. */}
+      <Link href={href} className="block" tabIndex={-1} aria-hidden="true">
+        <div
+          className={cn("frame", ratio ?? TILE_RATIO)}
+          style={
+            image ? undefined : { background: accentFor(product.category.accent) }
+          }
+        >
+          {image ? (
+            <Image
+              src={image.path}
+              alt={image.alt || product.name}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-[900ms] ease-[var(--ease-out-soft)] group-hover:scale-[1.045]"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 flex items-center justify-center px-6 text-center font-[family-name:var(--font-display)] text-[1.5rem] leading-tight text-paper/75"
+            >
+              {product.name}
+            </span>
+          )}
 
-        <span className="absolute left-4 top-4 flex flex-wrap gap-1.5">
-          {product.isFeatured ? <Badge tone="gold">Избрано</Badge> : null}
-          {product.availability !== "ACTIVE" ? (
-            <Badge tone={unavailable ? "danger" : "sage"}>
-              {AVAILABILITY_LABELS[product.availability]}
-            </Badge>
+          {product.isFeatured || product.availability !== "ACTIVE" ? (
+            <span className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+              {product.isFeatured ? <Badge tone="gold">Избрано</Badge> : null}
+              {product.availability !== "ACTIVE" ? (
+                <Badge tone={unavailable ? "danger" : "sage"}>
+                  {AVAILABILITY_LABELS[product.availability]}
+                </Badge>
+              ) : null}
+            </span>
           ) : null}
-        </span>
+        </div>
       </Link>
 
-      <div className="flex flex-1 flex-col p-6">
+      <div className="mt-5 flex flex-1 flex-col border-t border-line pt-4">
         {showCategory ? (
-          <span className="eyebrow eyebrow-plain mb-2 text-[0.68rem]">
+          <span className="label label-muted mb-2 text-[0.62rem]">
             {product.category.name}
           </span>
         ) : null}
 
-        <h3 className="font-[family-name:var(--font-display)] text-[1.42rem] leading-tight tracking-[-0.025em]">
+        <h3 className="display-4">
           <Link
-            href={`/menu/${product.category.slug}/${product.slug}`}
-            className="transition-colors hover:text-rose-dark"
+            href={href}
+            className="link-underline transition-colors group-hover:text-rose-dark"
           >
             {product.name}
           </Link>
         </h3>
 
-        <p className="mt-2 line-clamp-2 text-[0.9rem] text-ink-soft">
+        <p className="mt-2 line-clamp-2 text-[0.86rem] leading-relaxed text-ink-soft">
           {product.shortDescription}
         </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.82rem] text-ink-soft">
-          {product.portions ? <span>{product.portions}</span> : null}
-          {product.portions && price ? (
-            <span aria-hidden="true" className="text-ink-faint">
-              ·
-            </span>
-          ) : null}
-          <span className={cn("font-bold", price ? "text-ink" : "text-ink-faint")}>
+        <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[0.8rem]">
+          <span
+            className={cn(
+              "numeral font-bold",
+              price ? "text-ink" : "text-ink-faint",
+            )}
+          >
             {price ? `от ${price}` : "Цена след уточнение"}
           </span>
+          {product.portions ? (
+            <span className="text-ink-faint">{product.portions}</span>
+          ) : null}
         </div>
 
-        <div className="mt-auto flex flex-wrap gap-2 pt-5">
+        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[0.76rem] uppercase tracking-[0.16em]">
           {unavailable ? (
-            <span className="text-[0.85rem] font-semibold text-ink-faint">
-              Временно не се приема поръчка
+            <span className="font-semibold text-ink-faint">
+              Не се приема поръчка
             </span>
           ) : (
             <>
               <Link
                 href={`/order?product=${product.id}`}
-                className="inline-flex min-h-10 items-center rounded-full bg-ink px-4 text-[0.84rem] font-semibold text-paper transition-colors hover:bg-cocoa"
+                className="link-underline font-bold text-rose-dark"
               >
-                Поръчай този продукт
+                Поръчай
               </Link>
               {product.isCustomizable && product.dessertTypeId ? (
                 <Link
                   href={`/order?mode=custom&dessert=${product.dessertTypeId}`}
-                  className="inline-flex min-h-10 items-center rounded-full border border-line px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
+                  className="link-underline font-semibold text-ink-soft"
                 >
                   Персонализирай
                 </Link>

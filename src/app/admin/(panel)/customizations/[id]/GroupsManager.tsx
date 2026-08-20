@@ -79,7 +79,7 @@ export function GroupsManager({
           <button
             type="button"
             onClick={() => setCreatingGroup(true)}
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa"
+            className="inline-flex min-h-10 items-center gap-2 rounded-[3px] bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa"
           >
             <Plus size={15} aria-hidden="true" />
             Добави група
@@ -122,7 +122,7 @@ export function GroupsManager({
                     <button
                       type="button"
                       onClick={() => setEditingGroup(group)}
-                      className="inline-flex min-h-9 items-center rounded-full border border-line bg-paper px-3.5 text-[0.82rem] font-semibold transition-colors hover:border-ink"
+                      className="inline-flex min-h-9 items-center rounded-[3px] border border-line bg-paper px-3.5 text-[0.82rem] font-semibold transition-colors hover:border-ink"
                     >
                       Редактирай
                     </button>
@@ -145,7 +145,7 @@ export function GroupsManager({
                           <button
                             type="button"
                             onClick={() => setOptionTarget({ group, option })}
-                            className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-line bg-paper px-3 text-[0.8rem] transition-colors hover:border-ink"
+                            className="inline-flex min-h-8 items-center gap-1.5 rounded-[3px] border border-line bg-paper px-3 text-[0.8rem] transition-colors hover:border-ink"
                           >
                             {option.swatchColor ? (
                               <span
@@ -167,7 +167,7 @@ export function GroupsManager({
                         <button
                           type="button"
                           onClick={() => setOptionTarget({ group, option: null })}
-                          className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-dashed border-line-strong px-3 text-[0.8rem] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
+                          className="inline-flex min-h-8 items-center gap-1.5 rounded-[3px] border border-dashed border-line-strong px-3 text-[0.8rem] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
                         >
                           <Plus size={12} aria-hidden="true" />
                           Опция
@@ -363,7 +363,7 @@ export function GroupsManager({
                 <button
                   type="button"
                   onClick={closeGroup}
-                  className="inline-flex min-h-10 items-center rounded-full border border-line px-4 text-[0.86rem] font-semibold transition-colors hover:bg-surface-sunk"
+                  className="inline-flex min-h-10 items-center rounded-[3px] border border-line px-4 text-[0.86rem] font-semibold transition-colors hover:bg-surface-sunk"
                 >
                   Отказ
                 </button>
@@ -523,7 +523,7 @@ export function GroupsManager({
                     <button
                       type="button"
                       onClick={() => setOptionTarget(null)}
-                      className="inline-flex min-h-10 items-center rounded-full border border-line px-4 text-[0.86rem] font-semibold transition-colors hover:bg-surface-sunk"
+                      className="inline-flex min-h-10 items-center rounded-[3px] border border-line px-4 text-[0.86rem] font-semibold transition-colors hover:bg-surface-sunk"
                     >
                       Отказ
                     </button>

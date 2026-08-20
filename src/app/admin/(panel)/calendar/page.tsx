@@ -57,8 +57,8 @@ export default async function AdminCalendarPage({ searchParams }: SearchParams) 
                 href={`/admin/calendar?days=${option}`}
                 className={
                   option === days
-                    ? "inline-flex min-h-10 items-center rounded-full bg-ink px-4 text-[0.84rem] font-semibold text-paper"
-                    : "inline-flex min-h-10 items-center rounded-full border border-line bg-paper px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
+                    ? "inline-flex min-h-10 items-center rounded-[3px] bg-ink px-4 text-[0.84rem] font-semibold text-paper"
+                    : "inline-flex min-h-10 items-center rounded-[3px] border border-line bg-paper px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
                 }
               >
                 {option} дни

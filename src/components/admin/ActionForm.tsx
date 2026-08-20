@@ -110,7 +110,7 @@ export function SubmitButton({
       type="submit"
       disabled={pending || disabled}
       className={cn(
-        "inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-4 text-[0.86rem] font-semibold transition-colors disabled:opacity-60",
+        "inline-flex min-h-10 items-center justify-center gap-2 rounded-[3px] px-4 text-[0.86rem] font-semibold transition-colors disabled:opacity-60",
         variants[variant],
         className,
       )}
@@ -183,7 +183,7 @@ export function ConfirmAction({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-4 text-[0.86rem] font-semibold transition-colors",
+          "inline-flex min-h-10 items-center justify-center gap-2 rounded-[3px] px-4 text-[0.86rem] font-semibold transition-colors",
           variants[variant],
           className,
         )}

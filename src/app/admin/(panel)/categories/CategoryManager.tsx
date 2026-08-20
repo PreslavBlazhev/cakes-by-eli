@@ -59,7 +59,7 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa"
+          className="inline-flex min-h-10 items-center gap-2 rounded-[3px] bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa"
         >
           <Plus size={15} aria-hidden="true" />
           Добави категория
@@ -124,7 +124,7 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                 <button
                   type="button"
                   onClick={() => setEditing(category)}
-                  className="inline-flex min-h-9 items-center rounded-full border border-line bg-paper px-3.5 text-[0.82rem] font-semibold transition-colors hover:border-ink"
+                  className="inline-flex min-h-9 items-center rounded-[3px] border border-line bg-paper px-3.5 text-[0.82rem] font-semibold transition-colors hover:border-ink"
                 >
                   Редактирай
                 </button>
@@ -232,7 +232,7 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                   name="image"
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  className="block w-full text-[0.86rem] file:mr-3 file:rounded-full file:border file:border-line file:bg-paper file:px-4 file:py-2 file:text-[0.84rem] file:font-semibold hover:file:border-ink"
+                  className="block w-full text-[0.86rem] file:mr-3 file:rounded-[3px] file:border file:border-line file:bg-paper file:px-4 file:py-2 file:text-[0.84rem] file:font-semibold hover:file:border-ink"
                 />
               </Field>
 
@@ -273,7 +273,7 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                 <button
                   type="button"
                   onClick={close}
-                  className="inline-flex min-h-10 items-center rounded-full border border-line px-4 text-[0.86rem] font-semibold transition-colors hover:bg-surface-sunk"
+                  className="inline-flex min-h-10 items-center rounded-[3px] border border-line px-4 text-[0.86rem] font-semibold transition-colors hover:bg-surface-sunk"
                 >
                   Отказ
                 </button>

@@ -16,8 +16,8 @@ export function TopBar({
 }) {
   if (announcement) {
     return (
-      <div className="bg-rose-dark text-[0.82rem] text-paper">
-        <div className="wrap flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2.5 text-center tracking-[0.02em]">
+      <div className="bg-rose-dark text-paper">
+        <div className="wrap flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2.5 text-center text-[0.72rem] uppercase tracking-[0.16em]">
           <span className="font-semibold">{announcement.text}</span>
           {announcement.linkUrl ? (
             <Link
@@ -35,8 +35,8 @@ export function TopBar({
   if (!text) return null;
 
   return (
-    <div className="bg-ink text-[0.8rem] text-[#f8ede6]">
-      <p className="wrap py-2.5 text-center tracking-[0.04em]">{text}</p>
+    <div className="bg-cocoa text-[#e6d9cf]">
+      <p className="wrap py-2.5 text-center text-[0.68rem] uppercase tracking-[0.22em]">{text}</p>
     </div>
   );
 }

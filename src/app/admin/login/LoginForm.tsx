@@ -57,7 +57,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 font-semibold text-paper transition-colors hover:bg-cocoa disabled:opacity-60"
+        className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[3px] bg-ink px-5 font-semibold text-paper transition-colors hover:bg-cocoa disabled:opacity-60"
       >
         {pending ? (
           <>

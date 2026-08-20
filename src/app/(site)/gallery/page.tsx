@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
 
 import { GalleryGrid } from "@/components/site/GalleryGrid";
+import { PageHeader } from "@/components/site/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
-import {
-  Container,
-  EmptyState,
-  Eyebrow,
-  Section,
-} from "@/components/ui/primitives";
+import { Container, EmptyState, Label, Section } from "@/components/ui/primitives";
 import { listGallery } from "@/server/queries/gallery";
 import { getSettings } from "@/server/queries/settings";
 
@@ -32,25 +28,23 @@ export default async function GalleryPage() {
 
   return (
     <>
-      <section className="relative overflow-hidden pb-6 pt-14 lg:pt-20">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-40 -top-44 -z-10 size-[360px] rounded-full bg-blush opacity-55"
-        />
-        <Container>
-          <Eyebrow>Галерия</Eyebrow>
-          <h1 className="display-1 mt-4">
+      <PageHeader
+        crumbs={[
+          { href: "/", label: "Начало" },
+          { href: "/gallery", label: "Галерия" },
+        ]}
+        label="Портфолио"
+        title={
+          <>
             Малки детайли.
             <br />
-            Големи поводи.
-          </h1>
-          <p className="lede mt-5 max-w-[720px] text-[1.06rem]">
-            Подбрани проекти — торти, десерти и тематични композиции.
-          </p>
-        </Container>
-      </section>
+            <em className="display-italic">Големи поводи.</em>
+          </>
+        }
+        intro="Подбрани проекти — торти, десерти и тематични композиции, изработени по конкретен повод."
+      />
 
-      <Section tone="cream" className="pt-10">
+      <Section tone="cream" size="sm" className="pt-0">
         <Container>
           {items.length === 0 ? (
             <EmptyState
@@ -78,20 +72,37 @@ export default async function GalleryPage() {
         </Container>
       </Section>
 
-      <Section tone="paper" className="py-16">
-        <Container className="text-center">
-          <h2 className="display-2">Харесва ви нещо?</h2>
-          <p className="lede mx-auto mt-4">
-            Всеки проект може да бъде адаптиран към вашия повод, вкус и цветова
-            гама.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <ButtonLink href="/order?mode=custom" variant="rose" size="lg">
-              Създай своя десерт
-            </ButtonLink>
-            <ButtonLink href="/contacts" variant="outline" size="lg">
-              Свържи се с нас
-            </ButtonLink>
+      {/* Closing invitation — a single ruled block, not a centred hero. */}
+      <Section tone="ink" size="md">
+        <Container>
+          <div className="grid gap-10 border-t border-[#4a3730] pt-10 lg:grid-cols-[1fr_0.85fr] lg:gap-20">
+            <div>
+              <Label tone="light">Вашият проект</Label>
+              <h2 className="display-2 mt-5 text-paper">
+                Харесва ви
+                <br />
+                <em className="display-italic text-[#e7c9a8]">нещо оттук?</em>
+              </h2>
+            </div>
+            <div className="flex flex-col justify-end gap-8">
+              <p className="max-w-[42ch] text-[1.02rem] leading-relaxed text-[#cbbab0]">
+                Всеки проект може да бъде адаптиран към вашия повод, вкус и
+                цветова гама — или можете да съставите свой от нулата.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <ButtonLink href="/order?mode=custom" variant="rose" size="lg">
+                  Създай своя десерт
+                </ButtonLink>
+                <ButtonLink
+                  href="/contacts"
+                  variant="ghost"
+                  size="lg"
+                  className="border-paper/25 bg-transparent text-paper hover:border-paper hover:bg-paper hover:text-ink"
+                >
+                  Свържи се с нас
+                </ButtonLink>
+              </div>
+            </div>
           </div>
         </Container>
       </Section>

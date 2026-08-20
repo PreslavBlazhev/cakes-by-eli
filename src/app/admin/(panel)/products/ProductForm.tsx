@@ -282,7 +282,7 @@ export function ProductForm({
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 multiple
-                className="block w-full text-[0.86rem] file:mr-3 file:rounded-full file:border file:border-line file:bg-paper file:px-4 file:py-2 file:text-[0.84rem] file:font-semibold hover:file:border-ink"
+                className="block w-full text-[0.86rem] file:mr-3 file:rounded-[3px] file:border file:border-line file:bg-paper file:px-4 file:py-2 file:text-[0.84rem] file:font-semibold hover:file:border-ink"
               />
             </Field>
           </Card>

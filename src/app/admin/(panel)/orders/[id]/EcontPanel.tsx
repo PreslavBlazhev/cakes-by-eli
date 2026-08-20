@@ -102,7 +102,7 @@ export function EcontPanel({
           type="button"
           onClick={() => setOpen(true)}
           disabled={!configured}
-          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa disabled:opacity-50"
+          className="inline-flex min-h-10 items-center gap-2 rounded-[3px] bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa disabled:opacity-50"
         >
           <Truck size={15} aria-hidden="true" />
           Създай товарителница
@@ -173,7 +173,7 @@ export function EcontPanel({
                       href={shipment.pdfUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
+                      className="inline-flex min-h-10 items-center gap-2 rounded-[3px] border border-line bg-paper px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
                     >
                       <FileText size={14} aria-hidden="true" />
                       Отвори PDF
@@ -182,7 +182,7 @@ export function EcontPanel({
                       href={shipment.pdfUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
+                      className="inline-flex min-h-10 items-center gap-2 rounded-[3px] border border-line bg-paper px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
                     >
                       <Printer size={14} aria-hidden="true" />
                       Принтирай етикета
@@ -199,7 +199,7 @@ export function EcontPanel({
                   href={`${trackingBaseUrl}${encodeURIComponent(shipment.shipmentNumber)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-[3px] border border-line bg-paper px-4 text-[0.84rem] font-semibold transition-colors hover:border-ink"
                 >
                   <ExternalLink size={14} aria-hidden="true" />
                   Проследи
@@ -536,7 +536,7 @@ function CalculateButton({ formId }: { formId: string }) {
       type="button"
       onClick={run}
       disabled={busy}
-      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper px-4 text-[0.86rem] font-semibold transition-colors hover:border-ink disabled:opacity-60"
+      className="inline-flex min-h-10 items-center gap-2 rounded-[3px] border border-line bg-paper px-4 text-[0.86rem] font-semibold transition-colors hover:border-ink disabled:opacity-60"
     >
       <Calculator size={14} aria-hidden="true" />
       {busy ? "Изчисляване…" : "Изчисли цената"}

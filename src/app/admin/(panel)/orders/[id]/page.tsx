@@ -85,7 +85,7 @@ export default async function AdminOrderPage({ params }: Params) {
             <Link
               href={`/admin/print/${order.id}`}
               target="_blank"
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper px-4 text-[0.86rem] font-semibold transition-colors hover:border-ink"
+              className="inline-flex min-h-10 items-center gap-2 rounded-[3px] border border-line bg-paper px-4 text-[0.86rem] font-semibold transition-colors hover:border-ink"
             >
               <Printer size={15} aria-hidden="true" />
               Принтирай поръчка
@@ -154,7 +154,7 @@ export default async function AdminOrderPage({ params }: Params) {
               <CopyButton value={order.customerEmail} label="Копирай имейл" />
               <a
                 href={`tel:${order.customerPhoneE164}`}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-paper px-3 text-[0.8rem] font-semibold transition-colors hover:border-ink"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-[3px] border border-line bg-paper px-3 text-[0.8rem] font-semibold transition-colors hover:border-ink"
               >
                 <Phone size={13} aria-hidden="true" />
                 Обади се
@@ -163,7 +163,7 @@ export default async function AdminOrderPage({ params }: Params) {
                 href={`mailto:${order.customerEmail}?subject=${encodeURIComponent(
                   `Поръчка ${order.orderNumber}`,
                 )}`}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-paper px-3 text-[0.8rem] font-semibold transition-colors hover:border-ink"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-[3px] border border-line bg-paper px-3 text-[0.8rem] font-semibold transition-colors hover:border-ink"
               >
                 <Mail size={13} aria-hidden="true" />
                 Напиши имейл
@@ -460,7 +460,7 @@ export default async function AdminOrderPage({ params }: Params) {
                 <Link
                   href={`/order-summary/${order.qrToken}`}
                   target="_blank"
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-paper px-3 text-[0.8rem] font-semibold transition-colors hover:border-ink"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-[3px] border border-line bg-paper px-3 text-[0.8rem] font-semibold transition-colors hover:border-ink"
                 >
                   <QrCode size={13} aria-hidden="true" />
                   Отвори

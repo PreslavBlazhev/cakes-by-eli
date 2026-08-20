@@ -50,7 +50,7 @@ export function StatusControl({
                 type="button"
                 onClick={() => setStatus(option)}
                 className={cn(
-                  "inline-flex min-h-8 items-center rounded-full border px-3 text-[0.78rem] font-semibold transition-colors",
+                  "inline-flex min-h-8 items-center rounded-[3px] border px-3 text-[0.78rem] font-semibold transition-colors",
                   status === option
                     ? "border-ink bg-ink text-paper"
                     : "border-line bg-paper text-ink-soft hover:border-ink hover:text-ink",

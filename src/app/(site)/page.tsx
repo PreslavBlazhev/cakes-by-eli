@@ -1,15 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MapPin, Phone, Sparkles } from "lucide-react";
+import { ArrowRight, MapPin } from "lucide-react";
 
 import { CategoryCard, ProductCard } from "@/components/site/cards";
-import { HeroScene } from "@/components/site/HeroScene";
 import { Marquee } from "@/components/site/Marquee";
 import { SocialLinks } from "@/components/site/SocialLinks";
 import { ButtonLink, ExternalButtonLink } from "@/components/ui/Button";
 import {
   Container,
-  Eyebrow,
+  Label,
   Section,
   SectionHeading,
 } from "@/components/ui/primitives";
@@ -26,19 +25,19 @@ export const dynamic = "force-dynamic";
 
 const STEPS = [
   {
-    title: "Избирате продукт или създавате свой",
-    body: "Разгледайте менюто или отворете конфигуратора и съставете десерта си стъпка по стъпка.",
+    title: "Избор",
+    body: "Разгледайте менюто или отворете конфигуратора и съставете десерта стъпка по стъпка.",
   },
   {
-    title: "Попълвате детайлите",
+    title: "Детайли",
     body: "Повод, дата, брой порции, вкусове и всичко важно за поръчката.",
   },
   {
-    title: "Cakes by ELI потвърждава",
+    title: "Потвърждение",
     body: "Свързваме се с вас, уточняваме възможностите и потвърждаваме поръчката.",
   },
   {
-    title: "Получавате готовия десерт",
+    title: "Готово",
     body: "Вземане на място в Плевен или доставка с Еконт, където е приложимо.",
   },
 ];
@@ -48,8 +47,8 @@ export default async function HomePage() {
     await Promise.all([
       getSettings(),
       listPublicCategories(),
-      listPublicProducts({ featuredOnly: true, limit: 3 }),
-      listGallery({ featuredOnly: true, limit: 5 }),
+      listPublicProducts({ featuredOnly: true, limit: 5 }),
+      listGallery({ featuredOnly: true, limit: 6 }),
       getWorkingHours(),
       getUpcomingExceptions(),
     ]);
@@ -58,82 +57,72 @@ export default async function HomePage() {
   const heroCategories = categories.slice(0, 4);
   const mapsHost = settings.mapsUrl;
 
+  // The hero is photographic. Featured work is the best-lit material the
+  // owner has, so it is what leads — with the gallery as the fallback for
+  // a catalogue that has not been filled in yet.
+  const heroImages = [
+    ...featured.map((p) => p.images[0]).filter(Boolean),
+    ...gallery,
+  ].slice(0, 3);
+
   return (
     <>
-      {/* ---------------------------------------------------------- Hero */}
-      <section className="relative overflow-hidden pb-16 pt-10 lg:pb-24 lg:pt-16">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-40 -top-28 size-[520px] rounded-full bg-blush opacity-55 blur-[4px]"
-        />
-        <Container className="relative">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
-            <div>
+      {/* ============================================================ Hero */}
+      <section className="relative overflow-hidden bg-cream pb-16 pt-8 lg:pb-24 lg:pt-12">
+        <Container>
+          <div className="grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-16">
+            {/* ------------------------------------------------ Statement */}
+            <div className="relative z-10 lg:pr-4">
               {settings.heroEyebrow ? (
-                <Eyebrow>{settings.heroEyebrow}</Eyebrow>
+                <div className="flex items-center gap-4">
+                  <span aria-hidden="true" className="h-px w-10 bg-rose-dark" />
+                  <Label>{settings.heroEyebrow}</Label>
+                </div>
               ) : null}
 
-              <h1 className="display-1 mt-5">
+              <h1 className="display-1 mt-7">
                 {settings.heroTitle}
                 {settings.heroTitleAccent ? (
-                  <em className="block font-normal not-italic text-rose-dark">
+                  <em className="display-italic mt-1 block text-rose-dark">
                     {settings.heroTitleAccent}
                   </em>
                 ) : null}
               </h1>
 
-              <p className="lede mt-6 max-w-[640px] text-[1.06rem]">
-                {settings.heroSubtitle}
-              </p>
+              <p className="lede mt-7 max-w-[46ch]">{settings.heroSubtitle}</p>
 
-              <div className="mt-8 flex flex-wrap gap-3">
-                <ButtonLink href="/menu" variant="rose" size="lg">
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <ButtonLink href="/order?mode=custom" variant="rose" size="lg">
+                  Създай свой десерт
+                  <ArrowRight size={16} aria-hidden="true" />
+                </ButtonLink>
+                <ButtonLink href="/menu" variant="outline" size="lg">
                   Разгледай менюто
-                  <ArrowRight size={17} aria-hidden="true" />
                 </ButtonLink>
-                <ButtonLink href="/order" variant="outline" size="lg">
-                  Направи поръчка
-                </ButtonLink>
-                {settings.phone ? (
-                  <a
-                    href={`tel:${settings.phone.replace(/[^\d+]/g, "")}`}
-                    className="inline-flex min-h-14 items-center gap-2 px-2 text-[0.95rem] font-semibold text-ink-soft transition-colors hover:text-ink"
-                  >
-                    <Phone size={16} aria-hidden="true" />
-                    {settings.phone}
-                  </a>
-                ) : null}
               </div>
 
-              <dl className="mt-11 flex flex-wrap gap-x-9 gap-y-5 border-t border-line pt-6">
-                <div className="min-w-[120px]">
-                  <dt className="font-[family-name:var(--font-display)] text-[1.35rem]">
-                    по поръчка
-                  </dt>
-                  <dd className="text-[0.79rem] text-ink-soft">
-                    индивидуален дизайн
-                  </dd>
-                </div>
-                <div className="min-w-[120px]">
-                  <dt className="font-[family-name:var(--font-display)] text-[1.35rem]">
-                    ръчна изработка
-                  </dt>
-                  <dd className="text-[0.79rem] text-ink-soft">
-                    внимание към детайла
-                  </dd>
-                </div>
-                <div className="min-w-[120px]">
-                  <dt className="font-[family-name:var(--font-display)] text-[1.35rem]">
-                    {settings.city}
-                  </dt>
-                  <dd className="text-[0.79rem] text-ink-soft">
-                    {settings.addressLine || "локална сладкарска работа"}
-                  </dd>
-                </div>
+              {/* Credentials, set as a printed colophon rather than as
+                  three identical stat boxes. */}
+              <dl className="mt-12 flex flex-wrap gap-x-10 gap-y-6 border-t border-line pt-7">
+                {[
+                  ["По поръчка", "индивидуален дизайн"],
+                  ["Ръчна изработка", "внимание към детайла"],
+                  [settings.city, settings.addressLine || "локална сладкарска работа"],
+                ].map(([term, description]) => (
+                  <div key={term} className="min-w-[128px]">
+                    <dt className="font-[family-name:var(--font-display)] text-[1.24rem] leading-tight">
+                      {term}
+                    </dt>
+                    <dd className="mt-1 text-[0.76rem] uppercase tracking-[0.13em] text-ink-faint">
+                      {description}
+                    </dd>
+                  </div>
+                ))}
               </dl>
             </div>
 
-            <HeroScene />
+            {/* --------------------------------------------- Photography */}
+            <HeroComposition images={heroImages} city={settings.city} />
           </div>
         </Container>
       </section>
@@ -149,22 +138,137 @@ export default async function HomePage() {
         ]}
       />
 
-      {/* ------------------------------------------------------ Categories */}
+      {/* ====================================================== Signature */}
+      {featured.length > 0 ? (
+        <Section tone="cream">
+          <Container>
+            <SectionHeading
+              eyebrow="Избрано"
+              title={
+                <>
+                  Малки детайли.
+                  <br />
+                  <em className="display-italic">Големи поводи.</em>
+                </>
+              }
+              intro="Няколко от текущите предложения. Всяко може да бъде адаптирано към вашия повод — вкус, размер и декорация се уточняват заедно."
+              action={
+                <Link
+                  href="/menu"
+                  className="link-underline text-[0.76rem] font-bold uppercase tracking-[0.18em] text-rose-dark"
+                >
+                  Цялото меню
+                </Link>
+              }
+            />
+
+            {/* Editorial split: one large plate, then the supporting run.
+                An equal three-across grid is what made this read as stock. */}
+            <div className="mt-14 grid gap-x-8 gap-y-14 lg:grid-cols-[1.25fr_1fr] lg:gap-x-14">
+              <ProductCard
+                product={featured[0]}
+                showCategory
+                ratio="aspect-[4/3] lg:aspect-[16/13]"
+              />
+              <div className="grid gap-x-8 gap-y-12 sm:grid-cols-2">
+                {featured.slice(1, 3).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    showCategory
+                  />
+                ))}
+              </div>
+            </div>
+
+            {featured.length > 3 ? (
+              <div className="mt-14 grid gap-x-8 gap-y-12 border-t border-line pt-14 sm:grid-cols-2 lg:grid-cols-3">
+                {featured.slice(3).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    showCategory
+                  />
+                ))}
+              </div>
+            ) : null}
+          </Container>
+        </Section>
+      ) : null}
+
+      {/* ================================================= Custom builder */}
+      <Section tone="ink" size="lg">
+        <Container>
+          <div className="grid gap-12 lg:grid-cols-[1fr_0.92fr] lg:items-center lg:gap-20">
+            <div>
+              <div className="flex items-center gap-4">
+                <span aria-hidden="true" className="h-px w-10 bg-gold" />
+                <Label tone="light">Само тук</Label>
+              </div>
+
+              <h2 className="display-2 mt-6 text-paper">
+                Създай
+                <br />
+                <em className="display-italic text-[#e7c9a8]">своя десерт.</em>
+              </h2>
+
+              <p className="mt-7 max-w-[46ch] text-[1.04rem] leading-relaxed text-[#d6c6bb]">
+                Изберете вид, вкус, размер, цветове и декорация — и вижте как
+                десертът се променя пред вас, преди да поръчате.
+              </p>
+
+              <ol className="mt-10 divide-y divide-[#4a3730] border-y border-[#4a3730]">
+                {[
+                  "Формата, етажите и покритието се сменят на живо.",
+                  "Цветовете на крема и декорацията се виждат веднага.",
+                  "Обобщението се обновява с всеки избор.",
+                ].map((item, index) => (
+                  <li key={item} className="flex items-baseline gap-5 py-4">
+                    <span
+                      aria-hidden="true"
+                      className="numeral flex-none text-[0.75rem] text-[#a08b7f]"
+                    >
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="text-[0.94rem] text-[#cbbab0]">{item}</span>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="mt-10">
+                <ButtonLink
+                  href="/order?mode=custom"
+                  variant="ghost"
+                  size="lg"
+                  className="border-paper/25 bg-transparent text-paper hover:border-paper hover:bg-paper hover:text-ink"
+                >
+                  Отвори конфигуратора
+                  <ArrowRight size={16} aria-hidden="true" />
+                </ButtonLink>
+              </div>
+            </div>
+
+            <ConfiguratorTeaser />
+          </div>
+        </Container>
+      </Section>
+
+      {/* ======================================================= Menu index */}
       <Section tone="cream">
         <Container>
           <SectionHeading
-            eyebrow="Меню"
+            eyebrow="Менюто"
             title={
               <>
                 Изберете вида
                 <br />
-                десерт.
+                <em className="display-italic">десерт.</em>
               </>
             }
-            intro="Всяка категория води към конкретните предложения. От там можете да поръчате директно или да отворите конфигуратора."
+            intro="Всяка категория води към конкретните предложения. Оттам можете да поръчате директно или да отворите конфигуратора."
           />
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-14 grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-4">
             {heroCategories.map((category, index) => (
               <CategoryCard
                 key={category.id}
@@ -176,276 +280,178 @@ export default async function HomePage() {
           </div>
 
           {categories.length > heroCategories.length ? (
-            <div className="mt-10 flex justify-center">
-              <ButtonLink href="/menu" variant="ghost" size="md">
+            <div className="mt-14 border-t border-line pt-8">
+              <Link
+                href="/menu"
+                className="link-underline text-[0.78rem] font-bold uppercase tracking-[0.18em] text-rose-dark"
+              >
                 Виж всички {categories.length} категории
-                <ArrowRight size={15} aria-hidden="true" />
-              </ButtonLink>
+              </Link>
             </div>
           ) : null}
         </Container>
       </Section>
 
-      {/* --------------------------------------------------- Custom order */}
-      <Section tone="blush">
-        <Container>
-          <div className="grid items-center gap-12 lg:grid-cols-[0.95fr_1.05fr]">
-            <div>
-              <Eyebrow>Само тук</Eyebrow>
-              <h2 className="display-2 mt-4">
-                Създай
-                <br />
-                своя десерт.
-              </h2>
-              <p className="lede mt-5 text-[1.05rem]">
-                Изберете вид, вкус, размер, цветове и декорация и вижте как вашият
-                десерт се променя в реално време.
-              </p>
-
-              <ul className="mt-7 space-y-3">
-                {[
-                  "Формата, етажите и покритието се сменят на живо.",
-                  "Цветовете на крема и декорацията се виждат веднага.",
-                  "Обобщението на поръчката се обновява с всеки избор.",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <Sparkles
-                      size={16}
-                      aria-hidden="true"
-                      className="mt-1 flex-none text-rose-dark"
-                    />
-                    <span className="text-[0.95rem] text-ink-soft">{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-9">
-                <ButtonLink href="/order?mode=custom" variant="rose" size="lg">
-                  Създай персонална поръчка
-                  <ArrowRight size={17} aria-hidden="true" />
-                </ButtonLink>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="panel overflow-hidden bg-paper/80 p-6 shadow-[var(--shadow-card)] backdrop-blur">
-                <div className="grid gap-6 sm:grid-cols-[1fr_1.1fr] sm:items-center">
-                  <ul className="space-y-2.5 text-[0.86rem]">
-                    {[
-                      ["Вид", "Торта"],
-                      ["Етажи", "2 етажа"],
-                      ["Блат", "Шоколадов"],
-                      ["Крем", "Шамфъстък"],
-                      ["Покритие", "Бял крем"],
-                      ["Декорация", "Ягоди, златни детайли"],
-                    ].map(([label, value]) => (
-                      <li
-                        key={label}
-                        className="flex items-baseline justify-between gap-3 border-b border-line pb-2 last:border-0"
-                      >
-                        <span className="text-ink-faint">{label}</span>
-                        <span className="text-right font-semibold">{value}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="aspect-square">
-                    <PreviewTeaser />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Container>
-      </Section>
-
-      {/* --------------------------------------------------- Selected work */}
-      {featured.length > 0 ? (
-        <Section tone="cream">
+      {/* ========================================================= Gallery */}
+      {gallery.length > 0 ? (
+        <Section tone="stone">
           <Container>
             <SectionHeading
-              eyebrow="Избрани предложения"
+              eyebrow="Работата"
               title={
                 <>
-                  Малки детайли.
-                  <br />
-                  Големи поводи.
-                </>
-              }
-              intro="Няколко от текущите предложения. Всяко от тях може да бъде адаптирано към вашия повод."
-            />
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((product) => (
-                <ProductCard key={product.id} product={product} showCategory />
-              ))}
-            </div>
-          </Container>
-        </Section>
-      ) : null}
-
-      {/* -------------------------------------------------------- Gallery */}
-      {gallery.length > 0 ? (
-        <Section tone="ink">
-          <Container>
-            <div className="mb-11 grid items-end gap-8 lg:grid-cols-[1fr_0.75fr]">
-              <div>
-                <span className="eyebrow text-[#e7b7c0]">Галерия</span>
-                <h2 className="display-2 mt-3">
                   Изработено
                   <br />
-                  специално за вас.
-                </h2>
-              </div>
-              <p className="text-[1.02rem] text-[#d7c9c1]">
-                Подбрани проекти от работата на {settings.businessName}.
-              </p>
-            </div>
+                  <em className="display-italic">специално за вас.</em>
+                </>
+              }
+              intro={`Подбрани проекти от работата на ${settings.businessName}.`}
+              action={
+                <Link
+                  href="/gallery"
+                  className="link-underline text-[0.76rem] font-bold uppercase tracking-[0.18em] text-rose-dark"
+                >
+                  Цялата галерия
+                </Link>
+              }
+            />
 
-            <div className="grid auto-rows-[168px] grid-cols-2 gap-4 lg:grid-cols-4">
-              {gallery.slice(0, 5).map((item, index) => (
+            {/* Deliberately uneven: two tall plates flanking a stack. */}
+            <div className="mt-14 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
+              {gallery.slice(0, 6).map((item, index) => (
                 <Link
                   key={item.id}
                   href="/gallery"
-                  className={[
-                    "group relative overflow-hidden rounded-[var(--radius-md)] bg-[#4b3730]",
-                    index === 0 ? "row-span-2 lg:col-span-2" : "",
-                    index === 3 ? "lg:row-span-2" : "",
-                  ].join(" ")}
+                  className={cnGallery(index)}
+                  aria-label={item.caption || "Виж галерията"}
                 >
                   <Image
                     src={item.path}
                     alt={item.caption || ""}
                     fill
                     sizes="(max-width: 1024px) 50vw, 25vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="object-cover transition-transform duration-[900ms] ease-[var(--ease-out-soft)] group-hover:scale-[1.05]"
                   />
-                  <span className="absolute inset-0 bg-gradient-to-t from-[#180d0a]/65 to-transparent" />
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-cocoa-deep/70 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  />
                   {item.caption ? (
-                    <span className="absolute bottom-4 left-4 right-4 font-[family-name:var(--font-display)] text-[1.05rem] text-paper">
+                    <span className="absolute inset-x-4 bottom-4 translate-y-2 font-[family-name:var(--font-display)] text-[1rem] leading-snug text-paper opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
                       {item.caption}
                     </span>
                   ) : null}
                 </Link>
               ))}
             </div>
-
-            <div className="mt-10">
-              <ButtonLink
-                href="/gallery"
-                variant="ghost"
-                size="md"
-                className="border-paper/25 bg-transparent text-paper hover:bg-paper hover:text-ink"
-              >
-                Виж цялата галерия
-                <ArrowRight size={15} aria-hidden="true" />
-              </ButtonLink>
-            </div>
           </Container>
         </Section>
       ) : null}
 
-      {/* ---------------------------------------------------------- About */}
+      {/* =========================================================== About */}
       {settings.aboutText ? (
-        <Section tone="cream">
+        <Section tone="cream" size="lg">
           <Container>
-            <div className="grid items-center gap-14 lg:grid-cols-[0.85fr_1.15fr]">
-              <div
-                aria-hidden="true"
-                className="relative min-h-[420px] overflow-hidden rounded-t-[220px] rounded-b-[28px] bg-[linear-gradient(160deg,#e7cabf,#b97877)] shadow-[var(--shadow-card)] lg:min-h-[560px]"
-              >
-                <span className="absolute left-1/2 top-20 size-56 -translate-x-1/2 rounded-full bg-[#f8e5da]" />
-                <span className="absolute -bottom-20 left-1/2 size-[430px] -translate-x-1/2 rounded-[50%_50%_42%_42%] bg-cocoa" />
-                <span className="absolute bottom-0 left-1/2 h-80 w-64 -translate-x-1/2 rounded-t-[90px] bg-[#f6ede2] [clip-path:polygon(20%_0,80%_0,100%_100%,0_100%)]" />
-              </div>
-
+            <div className="grid gap-12 lg:grid-cols-[0.42fr_0.58fr] lg:gap-20">
               <div>
                 {settings.aboutEyebrow ? (
-                  <Eyebrow>{settings.aboutEyebrow}</Eyebrow>
+                  <Label className="mb-5 block">{settings.aboutEyebrow}</Label>
                 ) : null}
-                <h2 className="display-2 mt-4 whitespace-pre-line">
+                <h2 className="display-2 whitespace-pre-line">
                   {settings.aboutTitle}
                 </h2>
-                <p className="lede mt-5 whitespace-pre-line">
+              </div>
+
+              <div className="lg:pt-3">
+                <p className="whitespace-pre-line text-[1.06rem] leading-[1.75] text-ink-soft">
                   {settings.aboutText}
                 </p>
 
                 {settings.aboutQuote ? (
-                  <blockquote className="my-8 border-y border-line py-7">
-                    <p className="font-[family-name:var(--font-display)] text-[1.5rem] italic leading-snug text-ink">
+                  <blockquote className="mt-10 border-l-2 border-rose-dark pl-7">
+                    <p className="font-[family-name:var(--font-display)] text-[clamp(1.4rem,2.2vw,1.85rem)] italic leading-[1.35] text-ink">
                       „{settings.aboutQuote}“
                     </p>
                   </blockquote>
                 ) : null}
 
-                <ButtonLink href="/order" variant="rose">
-                  Разкажи ми за повода
-                  <ArrowRight size={16} aria-hidden="true" />
-                </ButtonLink>
+                <div className="mt-11">
+                  <ButtonLink href="/order" variant="outline">
+                    Разкажи ми за повода
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </ButtonLink>
+                </div>
               </div>
             </div>
           </Container>
         </Section>
       ) : null}
 
-      {/* --------------------------------------------------------- Process */}
-      <Section tone="paper">
+      {/* ========================================================= Process */}
+      <Section tone="paper" size="sm">
         <Container>
-          <SectionHeading
-            eyebrow="Как става"
-            title={
-              <>
-                От идея
+          <div className="grid gap-10 lg:grid-cols-[0.34fr_0.66fr] lg:gap-16">
+            <div className="border-t border-line pt-7">
+              <Label>Как става</Label>
+              <h2 className="display-3 mt-4">
+                От идея до
                 <br />
-                до готов десерт.
-              </>
-            }
-            intro="Четири стъпки, без излишни съобщения напред-назад."
-          />
+                готов десерт.
+              </h2>
+            </div>
 
-          <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map((step, index) => (
-              <li
-                key={step.title}
-                className="panel-sm flex flex-col gap-3 border-line bg-cream/60 p-6"
-              >
-                <span
-                  aria-hidden="true"
-                  className="grid size-11 place-items-center rounded-full bg-ink font-[family-name:var(--font-display)] text-[1.15rem] text-paper"
-                >
-                  {index + 1}
-                </span>
-                <h3 className="text-[1.05rem] font-bold leading-snug">
-                  {step.title}
-                </h3>
-                <p className="text-[0.88rem] text-ink-soft">{step.body}</p>
-              </li>
-            ))}
-          </ol>
+            <ol className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+              {STEPS.map((step, index) => (
+                <li key={step.title} className="border-t border-line pt-6">
+                  <div className="flex items-baseline gap-4">
+                    <span
+                      aria-hidden="true"
+                      className="numeral flex-none text-[0.75rem] text-rose-dark"
+                    >
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div>
+                      <h3 className="display-4">{step.title}</h3>
+                      <p className="mt-2 text-[0.88rem] leading-relaxed text-ink-soft">
+                        {step.body}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
         </Container>
       </Section>
 
-      {/* --------------------------------------------------------- Contact */}
-      <Section tone="cream">
+      {/* ========================================================= Contact */}
+      <Section tone="cream" size="md">
         <Container>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="flex flex-col justify-between rounded-[var(--radius-lg)] bg-cocoa p-8 text-paper sm:p-10">
+          <div className="grid overflow-hidden rounded-[var(--radius-lg)] border border-line lg:grid-cols-2">
+            <div className="flex flex-col justify-between gap-10 bg-cocoa p-9 text-paper sm:p-12">
               <div>
-                <span className="eyebrow text-[#e7b7bd]">Телефон</span>
-                <h2 className="display-3 mt-3 text-paper">Поръчки и въпроси</h2>
-                <p className="mt-3 text-[0.95rem] text-[#d8cbc4]">
-                  Най-бързият начин за уточняване на свободна дата и основните
-                  детайли.
+                <Label tone="light">Поръчки и въпроси</Label>
+                <h2 className="display-3 mt-4 text-paper">
+                  Най-бързо е
+                  <br />
+                  по телефона.
+                </h2>
+                <p className="mt-4 max-w-[38ch] text-[0.94rem] leading-relaxed text-[#c9b8ad]">
+                  Свободна дата и основните детайли се уточняват за минута.
                 </p>
               </div>
+
               {settings.phone ? (
                 <a
                   href={`tel:${settings.phone.replace(/[^\d+]/g, "")}`}
-                  className="mt-8 block font-[family-name:var(--font-display)] text-[clamp(1.9rem,5vw,3rem)] leading-none transition-opacity hover:opacity-80"
+                  className="numeral block font-[family-name:var(--font-display)] text-[clamp(1.9rem,4.4vw,2.9rem)] leading-none transition-opacity hover:opacity-75"
                 >
                   {settings.phone}
                 </a>
               ) : null}
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-                <p className="text-[0.85rem] text-[#c5b6af]">{status.text}</p>
+
+              <div className="flex flex-wrap items-center justify-between gap-5 border-t border-[#4a3730] pt-6">
+                <p className="text-[0.82rem] text-[#b8a79c]">{status.text}</p>
                 <SocialLinks
                   facebookUrl={settings.facebookUrl}
                   instagramUrl={settings.instagramUrl}
@@ -454,14 +460,14 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <div className="flex flex-col justify-between rounded-[var(--radius-lg)] border border-line bg-paper p-8 sm:p-10">
+            <div className="flex flex-col justify-between gap-10 bg-paper p-9 sm:p-12">
               <div>
-                <Eyebrow>Адрес</Eyebrow>
-                <h2 className="display-3 mt-3">{settings.businessName}</h2>
+                <Label>Ателието</Label>
+                <h2 className="display-3 mt-4">{settings.businessName}</h2>
                 {settings.addressLine ? (
-                  <p className="mt-3 flex items-start gap-2 text-[0.98rem] text-ink-soft">
+                  <p className="mt-5 flex items-start gap-3 text-[0.96rem] leading-relaxed text-ink-soft">
                     <MapPin
-                      size={17}
+                      size={16}
                       aria-hidden="true"
                       className="mt-1 flex-none text-rose-dark"
                     />
@@ -474,7 +480,7 @@ export default async function HomePage() {
                 ) : null}
               </div>
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3">
                 <ButtonLink href="/order" variant="rose">
                   Направи поръчка
                 </ButtonLink>
@@ -492,16 +498,150 @@ export default async function HomePage() {
   );
 }
 
-/** Static, non-interactive twin of the live preview used in the promo card. */
-function PreviewTeaser() {
+/* ------------------------------------------------------------------ */
+
+/** Uneven gallery cells — index drives which tile gets the tall crop. */
+function cnGallery(index: number): string {
+  const base =
+    "frame group relative block bg-cocoa/10 " +
+    "transition-[border-radius] duration-300";
+  if (index === 0) return `${base} col-span-2 row-span-2 aspect-square lg:col-span-2`;
+  if (index === 3) return `${base} aspect-[3/4] lg:row-span-2 lg:aspect-auto`;
+  return `${base} aspect-square`;
+}
+
+/**
+ * Overlapping photographic composition for the hero.
+ *
+ * Three real photographs at different scales, tilted off the grid, rather
+ * than one illustrated cake centred in a pastel circle. Falls back
+ * gracefully when the catalogue has fewer images.
+ */
+function HeroComposition({
+  images,
+  city,
+}: {
+  images: { path: string; alt?: string | null; caption?: string | null }[];
+  city: string;
+}) {
+  const [lead, second, third] = images;
+
+  if (!lead) {
+    return (
+      <div
+        aria-hidden="true"
+        className="frame aspect-[4/5] w-full bg-[linear-gradient(150deg,#e8d3d1,#a9854e)]"
+      />
+    );
+  }
+
   return (
-    <div className="h-full w-full">
-      <TeaserSvg />
+    <div className="relative">
+      {/* Lead plate */}
+      <div className="frame reveal relative aspect-[4/5] w-full sm:aspect-[5/6] lg:ml-auto lg:w-[86%]">
+        <Image
+          src={lead.path}
+          alt={lead.alt || lead.caption || ""}
+          fill
+          priority
+          sizes="(max-width: 1024px) 100vw, 46vw"
+          className="object-cover"
+        />
+      </div>
+
+      {/* Inset plate, overlapping the lead's lower-left corner */}
+      {second ? (
+        <div className="frame absolute -bottom-8 left-0 hidden w-[42%] sm:block lg:-bottom-10 lg:w-[38%]">
+          <div className="relative aspect-square">
+            <Image
+              src={second.path}
+              alt=""
+              fill
+              sizes="20vw"
+              className="object-cover"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {/* Small accent plate, top-left */}
+      {third ? (
+        <div className="frame absolute -top-6 left-2 hidden w-[26%] lg:block">
+          <div className="relative aspect-[3/4]">
+            <Image
+              src={third.path}
+              alt=""
+              fill
+              sizes="14vw"
+              className="object-cover"
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {/* Editorial caption tag */}
+      <span className="absolute -bottom-4 right-0 hidden items-center gap-3 bg-cream py-2 pl-5 sm:flex lg:-bottom-5">
+        <span aria-hidden="true" className="h-px w-8 bg-line-strong" />
+        <span className="text-[0.62rem] uppercase tracking-[0.26em] text-ink-faint">
+          Ателие · {city}
+        </span>
+      </span>
     </div>
   );
 }
 
-/** Cropped to the drawing itself so it fills its card, not floats in it. */
+/**
+ * Static twin of the live configurator, used as a teaser.
+ *
+ * It shows the two halves the real builder has — the running choice list
+ * and the drawing — so the section sells the actual experience rather
+ * than a decorative illustration.
+ */
+function ConfiguratorTeaser() {
+  return (
+    <div className="relative">
+      <div className="rounded-[var(--radius-lg)] border border-[#4a3730] bg-[#33241e] p-6 sm:p-8">
+        <div className="flex items-center justify-between gap-4 border-b border-[#4a3730] pb-4">
+          <span className="text-[0.62rem] uppercase tracking-[0.24em] text-[#a08b7f]">
+            Вашият десерт
+          </span>
+          <span className="numeral text-[0.72rem] text-[#e7c9a8]">06 / 06</span>
+        </div>
+
+        <div className="mt-6 grid gap-7 sm:grid-cols-[1fr_1.05fr] sm:items-center">
+          <ul className="space-y-0">
+            {[
+              ["Вид", "Торта"],
+              ["Етажи", "2 етажа"],
+              ["Блат", "Шоколадов"],
+              ["Крем", "Шамфъстък"],
+              ["Покритие", "Бял крем"],
+              ["Декорация", "Ягоди, злато"],
+            ].map(([term, value]) => (
+              <li
+                key={term}
+                className="flex items-baseline justify-between gap-4 border-b border-[#4a3730] py-2.5 last:border-0"
+              >
+                <span className="text-[0.78rem] uppercase tracking-[0.12em] text-[#9a857a]">
+                  {term}
+                </span>
+                <span className="text-right text-[0.88rem] font-semibold text-paper">
+                  {value}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="aspect-square">
+            <TeaserSvg />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Cropped to the drawing itself so it fills its panel, not floats in it. */
 function TeaserSvg() {
   return (
     <svg viewBox="34 135 332 332" className="h-full w-full" aria-hidden="true">
@@ -513,24 +653,24 @@ function TeaserSvg() {
           <stop offset="100%" stopColor="#e0d2be" />
         </linearGradient>
       </defs>
-      <ellipse cx="200" cy="440" rx="140" ry="22" fill="#3a2a25" opacity="0.12" />
+      <ellipse cx="200" cy="440" rx="140" ry="22" fill="#180f0c" opacity="0.35" />
       <ellipse cx="200" cy="393" rx="132" ry="19" fill="#f0dcc0" />
       <path d="M97 276 L97 386 A103 12 0 0 0 303 386 L303 276 Z" fill="url(#teaser-body)" />
       <ellipse cx="200" cy="276" rx="103" ry="12" fill="#fffdf9" />
-      <rect x="97" y="364" width="206" height="4" fill="#caa779" opacity="0.9" />
+      <rect x="97" y="364" width="206" height="4" fill="#a9854e" opacity="0.9" />
       <path d="M124 172 L124 268 A76 9 0 0 0 276 268 L276 172 Z" fill="url(#teaser-body)" />
       <ellipse cx="200" cy="172" rx="76" ry="9" fill="#fffdf9" />
       {[150, 180, 210, 240].map((x, i) => (
         <g key={x} transform={`translate(${x} ${166 - (i % 2) * 5})`}>
           <path
             d="M0 -9 C 9 -9 13 -2 12 5 C 11 13 5 19 0 21 C -5 19 -11 13 -12 5 C -13 -2 -9 -9 0 -9 Z"
-            fill="#c8515c"
+            fill="#97303b"
           />
-          <path d="M-9 -9 L-2 -12 L0 -18 L2 -12 L9 -9 L2 -6 L0 -4 L-2 -6 Z" fill="#7d9463" />
+          <path d="M-9 -9 L-2 -12 L0 -18 L2 -12 L9 -9 L2 -6 L0 -4 L-2 -6 Z" fill="#82896f" />
         </g>
       ))}
-      <path d="M262 196 l9 -5 l-2 10 l8 -4 l-7 12 l-9 2 l3 -8 z" fill="#caa779" />
-      <path d="M128 300 l9 -5 l-2 10 l8 -4 l-7 12 l-9 2 l3 -8 z" fill="#caa779" />
+      <path d="M262 196 l9 -5 l-2 10 l8 -4 l-7 12 l-9 2 l3 -8 z" fill="#a9854e" />
+      <path d="M128 300 l9 -5 l-2 10 l8 -4 l-7 12 l-9 2 l3 -8 z" fill="#a9854e" />
     </svg>
   );
 }

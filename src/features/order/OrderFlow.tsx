@@ -18,7 +18,7 @@ import {
   Badge,
   Container,
   ErrorNotice,
-  Eyebrow,
+  Label,
 } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -384,7 +384,7 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
                     setMode(null);
                     setClientErrors({});
                   }}
-                  className="inline-flex items-center gap-2 text-[0.86rem] font-semibold text-ink-soft transition-colors hover:text-rose-dark"
+                  className="link-underline inline-flex items-center gap-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-ink-soft transition-colors hover:text-rose-dark"
                 >
                   <ArrowLeft size={15} aria-hidden="true" />
                   Смени вида поръчка
@@ -395,7 +395,7 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
               </div>
 
               {draftRestored ? (
-                <div className="mb-6 rounded-[var(--radius-sm)] border border-info/25 bg-info-soft px-4 py-3 text-[0.86rem] text-info">
+                <div className="mb-8 border-l-2 border-info bg-info-soft px-4 py-3 text-[0.86rem] text-info">
                   Възстановихме последната ви незавършена заявка.{" "}
                   <button
                     type="button"
@@ -445,9 +445,9 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
               {/* ------------------------------------------- Custom mode */}
               {mode === "custom" ? (
                 <div className="space-y-7">
-                  <section className="panel p-5 sm:p-6">
-                    <Eyebrow>Вид десерт</Eyebrow>
-                    <h2 className="display-3 mt-2">Какво ще създаваме?</h2>
+                  <section className="border-t border-line pt-7">
+                    <Label>Вид десерт</Label>
+                    <h2 className="display-3 mt-4">Какво ще създаваме?</h2>
                     <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {data.desserts.map((option) => (
                         <OptionCard
@@ -483,9 +483,9 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
               ) : null}
 
               {/* -------------------------------------------- Order info */}
-              <section className="panel mt-7 p-5 sm:p-7">
-                <Eyebrow>Детайли по поръчката</Eyebrow>
-                <h2 className="display-3 mt-2">Кога и за какъв повод?</h2>
+              <section className="mt-14 border-t border-line pt-7">
+                <Label>Детайли по поръчката</Label>
+                <h2 className="display-3 mt-4">Кога и за какъв повод?</h2>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-3">
                   <Field
@@ -534,7 +534,7 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
                 </div>
 
                 {blockedReason ? (
-                  <p className="mt-3 rounded-[var(--radius-sm)] border border-warning/30 bg-warning-soft px-4 py-3 text-[0.86rem] text-warning">
+                  <p className="mt-3 border-l-2 border-warning bg-warning-soft px-4 py-3 text-[0.86rem] text-warning">
                     {blockedReason}
                   </p>
                 ) : null}
@@ -567,9 +567,9 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
               </section>
 
               {/* --------------------------------------------- Delivery */}
-              <section className="panel mt-5 p-5 sm:p-7">
-                <Eyebrow>Получаване</Eyebrow>
-                <h2 className="display-3 mb-5 mt-2">Как да стигне до вас?</h2>
+              <section className="mt-14 border-t border-line pt-7">
+                <Label>Получаване</Label>
+                <h2 className="display-3 mb-7 mt-4">Как да стигне до вас?</h2>
                 <DeliveryPicker
                   method={fulfillmentMethod}
                   onMethodChange={setFulfillmentMethod}
@@ -582,9 +582,9 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
               </section>
 
               {/* --------------------------------------------- Customer */}
-              <section className="panel mt-5 p-5 sm:p-7">
-                <Eyebrow>Вашите данни</Eyebrow>
-                <h2 className="display-3 mt-2">Как да се свържем с вас?</h2>
+              <section className="mt-14 border-t border-line pt-7">
+                <Label>Вашите данни</Label>
+                <h2 className="display-3 mt-4">Как да се свържем с вас?</h2>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <Field
@@ -660,7 +660,7 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
                   </Field>
                 </div>
 
-                <div className="mt-6 rounded-[var(--radius-sm)] border border-line bg-cream/70 p-4">
+                <div className="mt-7 border border-line bg-cream p-5">
                   <Checkbox
                     checked={consent}
                     onChange={(e) => setConsent(e.target.checked)}
@@ -689,9 +689,9 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
               </section>
 
               {/* ---------------------------------------------- Summary */}
-              <section className="panel mt-5 overflow-hidden">
-                <div className="border-b border-line bg-blush-soft px-5 py-4 sm:px-7">
-                  <Eyebrow>Обобщение</Eyebrow>
+              <section className="panel mt-14 overflow-hidden">
+                <div className="border-b border-line bg-blush-soft px-5 py-5 sm:px-7">
+                  <Label>Обобщение</Label>
                   <h2 className="display-3 mt-1.5">
                     {mode === "custom"
                       ? `Вашият ${dessert?.name.toLowerCase() ?? "десерт"}`
@@ -730,13 +730,13 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
                     </ul>
                   )}
 
-                  <div className="mt-6 flex flex-wrap items-baseline justify-between gap-3 rounded-[var(--radius-sm)] bg-cream px-4 py-3.5">
+                  <div className="mt-7 flex flex-wrap items-baseline justify-between gap-3 border-y border-line-strong bg-cream px-4 py-4">
                     <span className="text-[0.86rem] font-bold">
                       {price === null
                         ? "Цена"
                         : "Ориентировъчна цена"}
                     </span>
-                    <span className="font-[family-name:var(--font-display)] text-[1.45rem]">
+                    <span className="numeral font-[family-name:var(--font-display)] text-[1.6rem]">
                       {formatPriceOrPending(price)}
                     </span>
                   </div>
@@ -768,7 +768,7 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
                     {data.phone ? (
                       <a
                         href={`tel:${data.phone.replace(/[^\d+]/g, "")}`}
-                        className="inline-flex min-h-14 items-center gap-2 px-2 text-[0.92rem] font-semibold text-ink-soft transition-colors hover:text-ink"
+                        className="link-underline inline-flex min-h-14 items-center gap-2 px-1 text-[0.8rem] font-semibold uppercase tracking-[0.14em] text-ink-soft transition-colors hover:text-ink"
                       >
                         <Phone size={16} aria-hidden="true" />
                         Или се обадете: {data.phone}
@@ -809,9 +809,9 @@ function CatalogPicker({
   );
 
   return (
-    <section className="panel p-5 sm:p-6">
-      <Eyebrow>Продукт</Eyebrow>
-      <h2 className="display-3 mt-2">Какво да приготвим?</h2>
+    <section className="border-t border-line pt-7">
+      <Label>Продукт</Label>
+      <h2 className="display-3 mt-4">Какво да приготвим?</h2>
 
       {data.products.length === 0 ? (
         <p className="mt-4 text-[0.92rem] text-ink-soft">
@@ -917,9 +917,9 @@ function SuccessScreen({
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className="panel mx-auto max-w-[680px] p-8 text-center sm:p-12"
+        className="mx-auto max-w-[640px] border-y border-line py-12 text-center sm:py-16"
       >
-        <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-positive-soft text-positive">
+        <span className="mx-auto flex size-14 items-center justify-center rounded-full border border-positive/30 bg-positive-soft text-positive">
           <CheckCircle2 size={30} aria-hidden="true" />
         </span>
 
@@ -928,7 +928,7 @@ function SuccessScreen({
         <p className="mt-4 text-[1rem] text-ink-soft">
           Номер на поръчката
         </p>
-        <p className="mt-1 font-[family-name:var(--font-display)] text-[2rem] tracking-[0.02em]">
+        <p className="numeral mt-2 font-[family-name:var(--font-display)] text-[2.2rem] tracking-[0.02em]">
           {orderNumber}
         </p>
 
@@ -937,7 +937,7 @@ function SuccessScreen({
           Ако не го намирате, проверете и папката за нежелана поща.
         </p>
 
-        <p className="mx-auto mt-5 max-w-[520px] rounded-[var(--radius-sm)] bg-blush-soft px-5 py-4 text-[0.9rem] text-rose-deep">
+        <p className="mx-auto mt-6 max-w-[520px] border-l-2 border-rose-dark bg-blush-soft px-5 py-4 text-left text-[0.9rem] leading-relaxed text-rose-deep">
           {disclaimer}
         </p>
 
@@ -948,7 +948,7 @@ function SuccessScreen({
           {phone ? (
             <a
               href={`tel:${phone.replace(/[^\d+]/g, "")}`}
-              className="inline-flex min-h-12 items-center gap-2 rounded-full border border-ink px-5 text-[0.92rem] font-semibold transition-colors hover:bg-ink hover:text-paper"
+              className="inline-flex min-h-12 items-center gap-2 rounded-[3px] border border-ink px-6 text-[0.84rem] font-semibold transition-colors hover:bg-ink hover:text-paper"
             >
               <Phone size={16} aria-hidden="true" />
               {phone}

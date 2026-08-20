@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Inter } from "next/font/google";
+import { Manrope, Playfair_Display } from "next/font/google";
 
 import { ToastProvider } from "@/components/ui/Toast";
 import { env } from "@/lib/env";
@@ -7,15 +7,24 @@ import { getSettings } from "@/server/queries/settings";
 
 import "./globals.css";
 
-const inter = Inter({
+/**
+ * Two voices, deliberately far apart.
+ *
+ * Playfair carries the high-contrast, printed-menu register at display
+ * sizes; Manrope keeps navigation, forms and body copy plain and legible
+ * at small sizes. Both ship Cyrillic, which is non-negotiable here.
+ */
+const sans = Manrope({
   subsets: ["latin", "cyrillic"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-manrope",
   display: "swap",
 });
 
-const display = Cormorant_Garamond({
+const display = Playfair_Display({
   subsets: ["latin", "cyrillic"],
   weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
   variable: "--font-display",
   display: "swap",
 });
@@ -49,7 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#2f211d",
+  themeColor: "#241a15",
   width: "device-width",
   initialScale: 1,
 };
@@ -60,11 +69,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="bg" className={`${inter.variable} ${display.variable}`}>
+    <html lang="bg" className={`${sans.variable} ${display.variable}`}>
       <body>
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[500] focus:rounded-full focus:bg-ink focus:px-5 focus:py-3 focus:text-paper"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[500] focus:rounded-[3px] focus:bg-ink focus:px-5 focus:py-3 focus:text-paper"
         >
           Към основното съдържание
         </a>

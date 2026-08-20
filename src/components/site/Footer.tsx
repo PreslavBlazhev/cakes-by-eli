@@ -54,15 +54,15 @@ export function Footer({
   return (
     <footer
       data-site-footer
-      className="border-t border-line bg-paper pt-14 pb-10"
+      className="border-t border-line bg-paper pb-10 pt-16"
     >
       <div className="wrap">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-x-10 gap-y-12 md:grid-cols-2 lg:grid-cols-[1.25fr_0.85fr_1fr_1fr]">
           <div>
-            <p className="font-[family-name:var(--font-display)] text-[1.5rem] leading-none tracking-[-0.03em]">
+            <p className="font-[family-name:var(--font-display)] text-[1.7rem] leading-none tracking-[-0.015em]">
               {settings.businessName}
             </p>
-            <p className="mt-2 text-[0.7rem] uppercase tracking-[0.17em] text-ink-soft">
+            <p className="mt-3 text-[0.62rem] uppercase tracking-[0.28em] text-ink-faint">
               {settings.tagline}
             </p>
             <SocialLinks
@@ -73,32 +73,32 @@ export function Footer({
           </div>
 
           <nav aria-label="Долна навигация">
-            <p className="text-[0.74rem] font-extrabold uppercase tracking-[0.14em] text-ink-faint">
+            <p className="border-t border-line pb-4 pt-3 text-[0.62rem] uppercase tracking-[0.24em] text-ink-faint">
               Навигация
             </p>
-            <ul className="mt-3 space-y-2 text-[0.92rem]">
+            <ul className="space-y-2.5 text-[0.88rem] text-ink-soft">
               <li>
-                <Link href="/" className="transition-colors hover:text-rose-dark">
+                <Link href="/" className="link-underline transition-colors hover:text-rose-dark">
                   Начало
                 </Link>
               </li>
               <li>
-                <Link href="/menu" className="transition-colors hover:text-rose-dark">
+                <Link href="/menu" className="link-underline transition-colors hover:text-rose-dark">
                   Меню
                 </Link>
               </li>
               <li>
-                <Link href="/gallery" className="transition-colors hover:text-rose-dark">
+                <Link href="/gallery" className="link-underline transition-colors hover:text-rose-dark">
                   Галерия
                 </Link>
               </li>
               <li>
-                <Link href="/contacts" className="transition-colors hover:text-rose-dark">
+                <Link href="/contacts" className="link-underline transition-colors hover:text-rose-dark">
                   Контакти
                 </Link>
               </li>
               <li>
-                <Link href="/order" className="font-semibold text-rose-dark">
+                <Link href="/order" className="link-underline font-bold text-rose-dark">
                   Поръчай
                 </Link>
               </li>
@@ -106,10 +106,10 @@ export function Footer({
           </nav>
 
           <div>
-            <p className="text-[0.74rem] font-extrabold uppercase tracking-[0.14em] text-ink-faint">
+            <p className="border-t border-line pb-4 pt-3 text-[0.62rem] uppercase tracking-[0.24em] text-ink-faint">
               Контакти
             </p>
-            <ul className="mt-3 space-y-2 text-[0.92rem] text-ink-soft">
+            <ul className="space-y-2.5 text-[0.88rem] text-ink-soft">
               {settings.phone ? (
                 <li>
                   <a
@@ -124,7 +124,7 @@ export function Footer({
                 <li>
                   <a
                     href={`mailto:${settings.email}`}
-                    className="transition-colors hover:text-rose-dark"
+                    className="link-underline transition-colors hover:text-rose-dark"
                   >
                     {settings.email}
                   </a>
@@ -141,10 +141,10 @@ export function Footer({
           </div>
 
           <div>
-            <p className="text-[0.74rem] font-extrabold uppercase tracking-[0.14em] text-ink-faint">
+            <p className="border-t border-line pb-4 pt-3 text-[0.62rem] uppercase tracking-[0.24em] text-ink-faint">
               Работно време
             </p>
-            <ul className="mt-3 space-y-1.5 text-[0.9rem] text-ink-soft">
+            <ul className="space-y-2 text-[0.86rem] text-ink-soft">
               {summariseHours(hours).map((line) => (
                 <li key={line} className="whitespace-pre">
                   {line}
@@ -154,13 +154,13 @@ export function Footer({
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-line pt-6 text-[0.82rem] text-ink-soft sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-16 flex flex-col gap-3 border-t border-line pt-6 text-[0.72rem] uppercase tracking-[0.14em] text-ink-faint sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {year} {settings.businessName}. Всички права запазени.
           </p>
           <Link
             href="/privacy"
-            className="transition-colors hover:text-rose-dark"
+            className="link-underline transition-colors hover:text-rose-dark"
           >
             Политика за поверителност
           </Link>

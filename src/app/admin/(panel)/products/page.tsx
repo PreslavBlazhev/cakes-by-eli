@@ -39,7 +39,7 @@ export default async function AdminProductsPage() {
         actions={
           <Link
             href="/admin/products/new"
-            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa"
+            className="inline-flex min-h-10 items-center gap-2 rounded-[3px] bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa"
           >
             <Plus size={15} aria-hidden="true" />
             Добави продукт
@@ -76,7 +76,7 @@ export default async function AdminProductsPage() {
               action={
                 <Link
                   href="/admin/products/new"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-[0.86rem] font-semibold text-paper"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-[3px] bg-ink px-4 text-[0.86rem] font-semibold text-paper"
                 >
                   <Plus size={15} aria-hidden="true" />
                   Добави продукт

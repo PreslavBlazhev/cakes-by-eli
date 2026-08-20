@@ -79,7 +79,7 @@ export default async function AdminCustomizationsPage() {
               <div className="flex flex-wrap gap-2">
                 <Link
                   href={`/admin/customizations/${type.id}`}
-                  className="inline-flex min-h-9 items-center rounded-full border border-line bg-paper px-3.5 text-[0.82rem] font-semibold transition-colors hover:border-ink"
+                  className="inline-flex min-h-9 items-center rounded-[3px] border border-line bg-paper px-3.5 text-[0.82rem] font-semibold transition-colors hover:border-ink"
                 >
                   Настрой опциите
                 </Link>

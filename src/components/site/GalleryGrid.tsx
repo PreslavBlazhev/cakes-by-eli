@@ -92,54 +92,72 @@ export function GalleryGrid({ items }: { items: GalleryEntry[] }) {
   return (
     <>
       {categories.length > 1 ? (
-        <div className="mb-9 flex flex-wrap gap-2">
-          <FilterChip active={filter === null} onClick={() => setFilter(null)}>
-            Всички
-          </FilterChip>
-          {categories.map(([slug, name]) => (
-            <FilterChip
-              key={slug}
-              active={filter === slug}
-              onClick={() => setFilter(slug)}
-            >
-              {name}
-            </FilterChip>
-          ))}
-        </div>
+        <nav aria-label="Филтър по категория" className="mb-12">
+          <ul className="flex flex-wrap items-center gap-x-7 gap-y-3 border-y border-line py-4">
+            <li>
+              <FilterChip
+                active={filter === null}
+                onClick={() => setFilter(null)}
+              >
+                Всички
+              </FilterChip>
+            </li>
+            {categories.map(([slug, name]) => (
+              <li key={slug}>
+                <FilterChip
+                  active={filter === slug}
+                  onClick={() => setFilter(slug)}
+                >
+                  {name}
+                </FilterChip>
+              </li>
+            ))}
+            <li className="ml-auto text-[0.68rem] uppercase tracking-[0.18em] text-ink-faint">
+              <span className="numeral me-1 text-ink">{visible.length}</span> снимки
+            </li>
+          </ul>
+        </nav>
       ) : null}
 
-      <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      {/* True masonry. A fixed-ratio grid crops every photograph to the
+          same rectangle, which is exactly what makes a pastry portfolio
+          look like a stock-photo wall; columns let each image keep the
+          proportions it was shot in. */}
+      <ul className="columns-2 gap-4 lg:columns-3 lg:gap-5 [&>li]:mb-4 lg:[&>li]:mb-5">
         {visible.map((item, index) => (
-          <li
-            key={item.id}
-            className={cn(
-              index % 7 === 0 ? "lg:row-span-2" : "",
-            )}
-          >
+          <li key={item.id} className="break-inside-avoid">
             <button
               type="button"
               onClick={() => setOpenIndex(index)}
-              className="group relative block w-full overflow-hidden rounded-[var(--radius-md)] bg-[#4b3730]"
+              className="frame group relative block w-full bg-surface-sunk"
               aria-label={`Отвори: ${item.caption || "снимка"}`}
             >
               <span
-                className={cn(
-                  "block",
-                  index % 7 === 0 ? "aspect-[3/4]" : "aspect-[4/3]",
-                )}
+                className="block"
+                style={{
+                  aspectRatio:
+                    item.width && item.height
+                      ? `${item.width} / ${item.height}`
+                      : "4 / 5",
+                }}
               >
                 <Image
                   src={item.path}
                   alt={item.caption || ""}
                   fill
-                  loading={index < 4 ? "eager" : "lazy"}
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading={index < 6 ? "eager" : "lazy"}
+                  sizes="(max-width: 1024px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-[900ms] ease-[var(--ease-out-soft)] group-hover:scale-[1.05]"
                 />
               </span>
-              <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#180d0a]/70 via-transparent to-transparent opacity-70 transition-opacity duration-300 group-hover:opacity-90" />
+
+              {/* Caption stays out of the way until asked for. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-cocoa-deep/75 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-focus-visible:opacity-100"
+              />
               {item.caption ? (
-                <span className="pointer-events-none absolute bottom-3 left-4 right-4 text-left font-[family-name:var(--font-display)] text-[1.02rem] leading-tight text-paper">
+                <span className="pointer-events-none absolute inset-x-4 bottom-4 translate-y-2 text-left font-[family-name:var(--font-display)] text-[1rem] leading-snug text-paper opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
                   {item.caption}
                 </span>
               ) : null}
@@ -153,7 +171,7 @@ export function GalleryGrid({ items }: { items: GalleryEntry[] }) {
           role="dialog"
           aria-modal="true"
           aria-label={active.caption || "Преглед на снимка"}
-          className="fixed inset-0 z-[250] flex flex-col bg-cocoa-deep/94 backdrop-blur-sm"
+          className="fixed inset-0 z-[250] flex flex-col bg-cocoa-deep/97"
           onTouchStart={(e) => {
             touchStart.current = e.touches[0]?.clientX ?? null;
           }}
@@ -166,8 +184,8 @@ export function GalleryGrid({ items }: { items: GalleryEntry[] }) {
             touchStart.current = null;
           }}
         >
-          <div className="flex items-center justify-between gap-4 px-5 py-4 text-paper">
-            <p className="font-[family-name:var(--font-display)] text-[1.1rem]">
+          <div className="flex items-center justify-between gap-4 border-b border-paper/10 px-5 py-4 text-paper sm:px-8">
+            <p className="font-[family-name:var(--font-display)] text-[1.05rem] italic">
               {active.caption}
             </p>
             <button
@@ -175,7 +193,7 @@ export function GalleryGrid({ items }: { items: GalleryEntry[] }) {
               type="button"
               onClick={close}
               aria-label="Затвори прегледа"
-              className="flex size-11 items-center justify-center rounded-full border border-paper/25 transition-colors hover:bg-paper hover:text-ink"
+              className="flex size-11 items-center justify-center rounded-[3px] border border-paper/25 transition-colors hover:border-paper hover:bg-paper hover:text-ink"
             >
               <X size={18} aria-hidden="true" />
             </button>
@@ -192,23 +210,23 @@ export function GalleryGrid({ items }: { items: GalleryEntry[] }) {
           </div>
 
           {visible.length > 1 ? (
-            <div className="flex items-center justify-center gap-4 px-5 py-5 text-paper">
+            <div className="flex items-center justify-center gap-6 border-t border-paper/10 px-5 py-5 text-paper">
               <button
                 type="button"
                 onClick={() => step(-1)}
                 aria-label="Предишна снимка"
-                className="flex size-12 items-center justify-center rounded-full border border-paper/25 transition-colors hover:bg-paper hover:text-ink"
+                className="flex size-12 items-center justify-center rounded-[3px] border border-paper/25 transition-colors hover:bg-paper hover:text-ink"
               >
                 <ChevronLeft size={20} aria-hidden="true" />
               </button>
-              <span className="text-[0.85rem] tabular-nums text-paper/70">
+              <span className="numeral text-[0.8rem] tracking-[0.14em] text-paper/60">
                 {(openIndex ?? 0) + 1} / {visible.length}
               </span>
               <button
                 type="button"
                 onClick={() => step(1)}
                 aria-label="Следваща снимка"
-                className="flex size-12 items-center justify-center rounded-full border border-paper/25 transition-colors hover:bg-paper hover:text-ink"
+                className="flex size-12 items-center justify-center rounded-[3px] border border-paper/25 transition-colors hover:bg-paper hover:text-ink"
               >
                 <ChevronRight size={20} aria-hidden="true" />
               </button>
@@ -234,11 +252,12 @@ function FilterChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      data-active={active}
       className={cn(
-        "inline-flex min-h-10 items-center rounded-full border px-4 text-[0.86rem] font-semibold transition-colors",
+        "link-underline inline-flex min-h-9 items-center text-[0.74rem] uppercase tracking-[0.16em] transition-colors",
         active
-          ? "border-ink bg-ink text-paper"
-          : "border-line bg-paper hover:border-ink",
+          ? "font-bold text-rose-dark"
+          : "font-semibold text-ink-soft hover:text-ink",
       )}
     >
       {children}

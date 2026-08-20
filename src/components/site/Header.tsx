@@ -15,6 +15,13 @@ const NAV = [
   { href: "/contacts", label: "Контакти" },
 ];
 
+/**
+ * The masthead of a printed menu rather than an app bar.
+ *
+ * The wordmark is set in the display face and given a hairline and a
+ * letterspaced descriptor — a circular monogram badge is the generic
+ * move, and this brand already has a name worth setting properly.
+ */
 export function Header({
   businessName,
   tagline,
@@ -28,6 +35,14 @@ export function Header({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -48,80 +63,78 @@ export function Header({
   return (
     <header
       data-site-header
-      className="sticky top-0 z-50 border-b border-line/80 bg-cream/90 backdrop-blur-xl"
+      className={cn(
+        "sticky top-0 z-50 transition-[background-color,border-color] duration-300",
+        scrolled
+          ? "border-b border-line bg-cream/95 backdrop-blur-md"
+          : "border-b border-transparent bg-cream",
+      )}
     >
       <div className="wrap">
         <nav
           aria-label="Основна навигация"
-          className="flex h-[74px] items-center justify-between gap-6 lg:h-[86px]"
+          className="flex h-[72px] items-center justify-between gap-8 lg:h-[92px]"
         >
           <Link
             href="/"
-            className="flex min-w-max items-center gap-3"
+            className="group min-w-max"
             aria-label={`${businessName} — начало`}
           >
-            <span
-              aria-hidden="true"
-              className="relative grid size-10 place-items-center rounded-full bg-ink text-paper lg:size-[46px]"
-            >
-              <span className="absolute inset-1 rounded-full border border-paper/45" />
-              <span className="font-[family-name:var(--font-display)] text-[1.1rem] italic lg:text-[1.25rem]">
-                CE
-              </span>
+            <span className="block font-[family-name:var(--font-display)] text-[1.32rem] leading-none tracking-[-0.015em] lg:text-[1.6rem]">
+              {businessName}
             </span>
-            <span>
-              <span className="block font-[family-name:var(--font-display)] text-[1.2rem] leading-none tracking-[-0.03em] lg:text-[1.42rem]">
-                {businessName}
-              </span>
-              <span className="mt-1 hidden text-[0.66rem] uppercase tracking-[0.17em] text-ink-soft sm:block">
+            <span className="mt-[7px] hidden items-center gap-2.5 sm:flex">
+              <span
+                aria-hidden="true"
+                className="h-px w-6 bg-line-strong transition-[width] duration-500 group-hover:w-10"
+              />
+              <span className="text-[0.6rem] uppercase tracking-[0.28em] text-ink-faint">
                 {tagline}
               </span>
             </span>
           </Link>
 
-          {/* Desktop */}
-          <div className="hidden items-center gap-7 lg:flex">
-            <ul className="flex items-center gap-7 text-[0.93rem]">
+          {/* ------------------------------------------------- Desktop */}
+          <div className="hidden items-center gap-9 lg:flex">
+            <ul className="flex items-center gap-8">
               {NAV.map((item) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}
                     aria-current={isActive(item.href) ? "page" : undefined}
+                    data-active={isActive(item.href)}
                     className={cn(
-                      "group relative inline-block py-1",
-                      isActive(item.href) && "font-bold text-rose-dark",
+                      "link-underline py-1 text-[0.74rem] uppercase tracking-[0.2em] transition-colors",
+                      isActive(item.href)
+                        ? "font-bold text-rose-dark"
+                        : "font-semibold text-ink-soft hover:text-ink",
                     )}
                   >
                     {item.label}
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "absolute -bottom-0.5 left-0 h-px bg-rose-dark transition-all duration-300",
-                        isActive(item.href)
-                          ? "right-0"
-                          : "right-full group-hover:right-0",
-                      )}
-                    />
                   </Link>
                 </li>
               ))}
             </ul>
+
+            <span aria-hidden="true" className="h-6 w-px bg-line" />
+
             {phone ? (
               <a
                 href={phoneHref}
-                className="flex items-center gap-2 text-[0.9rem] font-semibold text-ink-soft transition-colors hover:text-ink"
+                className="flex items-center gap-2 text-[0.86rem] font-semibold text-ink transition-colors hover:text-rose-dark"
               >
-                <Phone size={15} aria-hidden="true" />
+                <Phone size={14} aria-hidden="true" className="text-ink-faint" />
                 {phone}
               </a>
             ) : null}
+
             <ButtonLink href="/order" variant="rose" size="sm">
               Поръчай
             </ButtonLink>
           </div>
 
-          {/* Mobile trigger */}
-          <div className="flex items-center gap-2 lg:hidden">
+          {/* ------------------------------------------ Mobile trigger */}
+          <div className="flex items-center gap-3 lg:hidden">
             <ButtonLink href="/order" variant="rose" size="sm">
               Поръчай
             </ButtonLink>
@@ -131,24 +144,18 @@ export function Header({
               aria-expanded={open}
               aria-controls="mobile-nav"
               aria-label={open ? "Затвори менюто" : "Отвори менюто"}
-              className="flex size-11 flex-col items-center justify-center gap-[5px] rounded-full transition-colors hover:bg-blush-soft"
+              className="flex size-11 flex-col items-center justify-center gap-[6px] rounded-[3px] border border-line bg-paper transition-colors hover:border-line-strong"
             >
               <span
                 className={cn(
-                  "block h-px w-[22px] bg-ink transition-transform duration-300",
-                  open && "translate-y-[6px] rotate-45",
+                  "block h-px w-[18px] bg-ink transition-transform duration-300",
+                  open && "translate-y-[3.5px] rotate-45",
                 )}
               />
               <span
                 className={cn(
-                  "block h-px w-[22px] bg-ink transition-opacity duration-200",
-                  open && "opacity-0",
-                )}
-              />
-              <span
-                className={cn(
-                  "block h-px w-[22px] bg-ink transition-transform duration-300",
-                  open && "-translate-y-[6px] -rotate-45",
+                  "block h-px w-[18px] bg-ink transition-transform duration-300",
+                  open && "-translate-y-[3.5px] -rotate-45",
                 )}
               />
             </button>
@@ -156,43 +163,61 @@ export function Header({
         </nav>
       </div>
 
-      {/* Mobile sheet */}
+      {/* ------------------------------------------------ Mobile sheet */}
       <div
         id="mobile-nav"
         hidden={!open}
-        className="lg:hidden"
+        className="fixed inset-x-0 bottom-0 top-[72px] z-50 overflow-y-auto border-t border-line bg-cream lg:hidden"
       >
-        <div className="wrap pb-5">
-          <ul className="panel flex flex-col gap-1 p-3 shadow-[var(--shadow-card)]">
-            {NAV.map((item) => (
-              <li key={item.href}>
+        <div className="wrap flex min-h-full flex-col py-10">
+          <ul className="flex flex-col">
+            {NAV.map((item, index) => (
+              <li key={item.href} className="border-b border-line">
                 <Link
                   href={item.href}
                   onClick={() => setOpen(false)}
                   aria-current={isActive(item.href) ? "page" : undefined}
-                  className={cn(
-                    "block rounded-[var(--radius-sm)] px-4 py-3.5 text-[1rem] transition-colors",
-                    isActive(item.href)
-                      ? "bg-blush-soft font-bold text-rose-dark"
-                      : "hover:bg-surface-sunk",
-                  )}
+                  className="flex items-baseline gap-4 py-5"
                 >
-                  {item.label}
+                  <span
+                    aria-hidden="true"
+                    className="numeral w-7 flex-none text-[0.8rem] text-ink-faint"
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span
+                    className={cn(
+                      "display-3",
+                      isActive(item.href) ? "text-rose-dark" : "text-ink",
+                    )}
+                  >
+                    {item.label}
+                  </span>
                 </Link>
               </li>
             ))}
-            {phone ? (
-              <li className="mt-1 border-t border-line pt-2">
-                <a
-                  href={phoneHref}
-                  className="flex items-center gap-2 rounded-[var(--radius-sm)] px-4 py-3.5 font-semibold"
-                >
-                  <Phone size={16} aria-hidden="true" />
-                  {phone}
-                </a>
-              </li>
-            ) : null}
           </ul>
+
+          <div className="mt-10 flex flex-col gap-4">
+            <ButtonLink
+              href="/order?mode=custom"
+              variant="rose"
+              size="lg"
+              fullWidth
+              onClick={() => setOpen(false)}
+            >
+              Създай свой десерт
+            </ButtonLink>
+            {phone ? (
+              <a
+                href={phoneHref}
+                className="flex items-center justify-center gap-2.5 py-2 text-[1rem] font-semibold"
+              >
+                <Phone size={16} aria-hidden="true" className="text-ink-faint" />
+                {phone}
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
     </header>

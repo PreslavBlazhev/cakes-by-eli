@@ -16,29 +16,45 @@ export function Container({
   return <div className={cn("wrap", className)}>{children}</div>;
 }
 
+export function NarrowContainer({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={cn("wrap-narrow", className)}>{children}</div>;
+}
+
 export function Section({
   children,
   className,
   tone = "cream",
   id,
+  size = "md",
 }: {
   children: ReactNode;
   className?: string;
-  tone?: "cream" | "paper" | "ink" | "blush" | "none";
+  tone?: "cream" | "paper" | "ink" | "blush" | "stone" | "none";
   id?: string;
+  size?: "sm" | "md" | "lg";
 }) {
   const tones: Record<string, string> = {
     cream: "bg-cream",
     paper: "bg-paper",
     ink: "bg-cocoa text-paper",
-    blush: "bg-gradient-to-b from-blush to-[#f7e9df]",
+    // Flat, not a gradient — gradients on section backgrounds are noise.
+    blush: "bg-blush-soft",
+    stone: "bg-surface-sunk",
     none: "",
   };
+  const sizes: Record<string, string> = {
+    sm: "py-14 sm:py-16 lg:py-20",
+    md: "py-16 sm:py-22 lg:py-28",
+    lg: "py-20 sm:py-28 lg:py-36",
+  };
   return (
-    <section
-      id={id}
-      className={cn("py-16 sm:py-20 lg:py-[105px]", tones[tone], className)}
-    >
+    <section id={id} className={cn(sizes[size], tones[tone], className)}>
       {children}
     </section>
   );
@@ -64,6 +80,37 @@ export function Eyebrow({
   );
 }
 
+/** Small-caps editorial label — the public site's section marker. */
+export function Label({
+  children,
+  className,
+  tone = "brand",
+}: {
+  children: ReactNode;
+  className?: string;
+  tone?: "brand" | "muted" | "light";
+}) {
+  return (
+    <span
+      className={cn(
+        "label",
+        tone === "muted" && "label-muted",
+        tone === "light" && "label-light",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Section heading.
+ *
+ * `rule` draws a hairline above the label and lets the heading sit on it,
+ * which is what gives a page its printed-index rhythm without adding yet
+ * another bordered box.
+ */
 export function SectionHeading({
   eyebrow,
   title,
@@ -71,6 +118,8 @@ export function SectionHeading({
   align = "split",
   className,
   level = 2,
+  rule = true,
+  action,
 }: {
   eyebrow?: string;
   title: ReactNode;
@@ -78,23 +127,31 @@ export function SectionHeading({
   align?: "split" | "center" | "start";
   className?: string;
   level?: 1 | 2;
+  rule?: boolean;
+  action?: ReactNode;
 }) {
   const Tag = level === 1 ? "h1" : "h2";
   const displayClass = level === 1 ? "display-1" : "display-2";
 
+  const marker = eyebrow ? (
+    <Label className={cn(align === "center" && "mx-auto block w-fit")}>
+      {eyebrow}
+    </Label>
+  ) : null;
+
   if (align === "split") {
     return (
-      <div
-        className={cn(
-          "mb-11 grid items-end gap-8 lg:grid-cols-[1fr_0.75fr] lg:gap-12",
-          className,
-        )}
-      >
-        <div>
-          {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-          <Tag className={cn(displayClass, "mt-3")}>{title}</Tag>
+      <div className={cn(rule && "border-t border-line pt-7", className)}>
+        <div className="grid items-end gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14">
+          <div>
+            {marker}
+            <Tag className={cn(displayClass, eyebrow && "mt-4")}>{title}</Tag>
+          </div>
+          <div className="lg:pb-2">
+            {intro ? <p className="lede">{intro}</p> : null}
+            {action ? <div className="mt-6">{action}</div> : null}
+          </div>
         </div>
-        {intro ? <p className="lede">{intro}</p> : null}
       </div>
     );
   }
@@ -102,18 +159,17 @@ export function SectionHeading({
   return (
     <div
       className={cn(
-        "mb-11 max-w-3xl",
-        align === "center" && "mx-auto text-center",
+        rule && "border-t border-line pt-7",
+        align === "center" && "text-center",
         className,
       )}
     >
-      {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-      <Tag className={cn(displayClass, "mt-3")}>{title}</Tag>
-      {intro ? (
-        <p className={cn("lede mt-4", align === "center" && "mx-auto")}>
-          {intro}
-        </p>
-      ) : null}
+      <div className={cn("max-w-3xl", align === "center" && "mx-auto")}>
+        {marker}
+        <Tag className={cn(displayClass, eyebrow && "mt-4")}>{title}</Tag>
+        {intro ? <p className={cn("lede mt-5", align === "center" && "mx-auto")}>{intro}</p> : null}
+        {action ? <div className="mt-7">{action}</div> : null}
+      </div>
     </div>
   );
 }
@@ -161,7 +217,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.72rem] font-bold uppercase tracking-[0.08em] leading-none",
+        "inline-flex items-center gap-1.5 rounded-[2px] border px-2 py-1 text-[0.66rem] font-bold uppercase tracking-[0.13em] leading-none",
         badgeTones[tone],
         className,
       )}

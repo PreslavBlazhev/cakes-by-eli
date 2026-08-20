@@ -5,8 +5,8 @@ import { useMemo } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 import { Field, Input, OptionCard, Textarea } from "@/components/ui/form";
-import { Badge } from "@/components/ui/primitives";
 import {
+  buildSummary,
   completionProgress,
   setNumberValue,
   setTextValue,
@@ -26,10 +26,13 @@ import { formatPrice } from "@/lib/format";
 /**
  * The signature ordering surface.
  *
- * Left column: option groups, ordered into steps, rendered entirely from the
- * data the admin panel controls. Right column: the sticky live preview.
- * Nothing here knows what a "cake" is — adding a dessert type in the admin
- * panel produces a working configurator with no code change.
+ * Left column: option groups, ordered into steps, rendered entirely from
+ * the data the admin panel controls. Right column: the sticky live
+ * drawing with the running list of choices underneath it, so the panel
+ * answers "what have I picked so far" without scrolling back up.
+ *
+ * Nothing here knows what a "cake" is — adding a dessert type in the
+ * admin panel produces a working configurator with no code change.
  */
 export function CustomBuilder({
   dessert,
@@ -51,6 +54,10 @@ export function CustomBuilder({
     () => buildPreviewModel(dessert, state),
     [dessert, state],
   );
+  const summary = useMemo(
+    () => buildSummary(dessert, state),
+    [dessert, state],
+  );
 
   const currentStepIndex = steps.findIndex((step) =>
     step.groups.some((group) => !hasValue(state, group)),
@@ -58,116 +65,140 @@ export function CustomBuilder({
   const activeStep = currentStepIndex === -1 ? steps.length : currentStepIndex + 1;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.82fr)] lg:items-start">
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(310px,0.72fr)] lg:items-start lg:gap-14">
       {/* ------------------------------------------- Mobile sticky preview */}
-      <div className="sticky top-[74px] z-30 -mx-4 mb-2 border-b border-line bg-cream/95 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="sticky top-[72px] z-30 -mx-4 mb-2 border-y border-line bg-cream/97 px-4 py-3 backdrop-blur lg:hidden">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center gap-3">
-            <span className="size-16 flex-none overflow-hidden rounded-[var(--radius-xs)] border border-line bg-paper">
+            <span className="frame size-14 flex-none bg-paper">
               <DessertPreview model={model} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[0.72rem] font-extrabold uppercase tracking-[0.12em] text-ink-faint">
-                Вашият десерт
-              </span>
-              <span className="block truncate text-[0.94rem] font-bold">
+              <span className="block truncate font-[family-name:var(--font-display)] text-[1.05rem] leading-tight">
                 {dessert.name}
               </span>
-              <span className="block text-[0.76rem] text-ink-soft">
-                Стъпка {Math.min(activeStep, steps.length)} от {steps.length} ·{" "}
-                {progress.answered}/{progress.total} избора
+              <span className="mt-1 block text-[0.68rem] uppercase tracking-[0.14em] text-ink-faint">
+                Стъпка {Math.min(activeStep, steps.length)} / {steps.length} ·{" "}
+                {progress.answered} от {progress.total}
+              </span>
+              <span
+                aria-hidden="true"
+                className="mt-2 block h-px w-full bg-line"
+              >
+                <span
+                  className="block h-px bg-rose-dark transition-[width] duration-500"
+                  style={{
+                    width:
+                      progress.total === 0
+                        ? "0%"
+                        : `${(progress.answered / progress.total) * 100}%`,
+                  }}
+                />
               </span>
             </span>
             <ChevronDown
-              size={18}
+              size={17}
               aria-hidden="true"
-              className="flex-none text-ink-soft transition-transform group-open:rotate-180"
+              className="flex-none text-ink-faint transition-transform group-open:rotate-180"
             />
           </summary>
-          <div className="mt-3 rounded-[var(--radius-md)] border border-line bg-paper p-3">
-            <div className="aspect-square w-full max-w-[280px] mx-auto">
+          <div className="mt-4 border-t border-line pt-4">
+            <div className="frame mx-auto aspect-square w-full max-w-[260px] bg-paper">
               <DessertPreview model={model} />
             </div>
+            {summary.length > 0 ? (
+              <ChoiceList lines={summary} className="mt-4" />
+            ) : null}
           </div>
         </details>
       </div>
 
-      {/* ---------------------------------------------------- Left column */}
+      {/* ------------------------------------------------------ Steps */}
       <div>
-        <ProgressBar
-          current={Math.min(activeStep, steps.length)}
-          total={steps.length}
+        <StepRail
+          steps={steps.map((step, index) => ({
+            key: step.step,
+            label: step.groups.map((g) => g.label).join(" · "),
+            done: step.groups.every((group) => hasValue(state, group)),
+            index,
+          }))}
           answered={progress.answered}
-          totalGroups={progress.total}
+          total={progress.total}
         />
 
-        <div className="mt-6 space-y-7">
-          {steps.map((step, index) => (
-            <section
-              key={step.step}
-              aria-labelledby={`step-${step.step}`}
-              className="panel p-5 sm:p-6"
-            >
-              <header className="mb-5 flex items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "grid size-9 flex-none place-items-center rounded-full text-[0.9rem] font-bold transition-colors",
-                    step.groups.every((group) => hasValue(state, group))
-                      ? "bg-positive text-paper"
-                      : "bg-ink text-paper",
-                  )}
-                >
-                  {step.groups.every((group) => hasValue(state, group)) ? (
-                    <Check size={16} aria-hidden="true" />
-                  ) : (
-                    index + 1
-                  )}
-                </span>
-                <h3
-                  id={`step-${step.step}`}
-                  className="font-[family-name:var(--font-display)] text-[1.35rem] leading-tight"
-                >
-                  {step.groups.map((group) => group.label).join(" · ")}
-                </h3>
-              </header>
+        <div className="mt-10 space-y-12">
+          {steps.map((step, index) => {
+            const done = step.groups.every((group) => hasValue(state, group));
+            return (
+              <section
+                key={step.step}
+                id={`step-${step.step}`}
+                aria-labelledby={`step-heading-${step.step}`}
+                className="scroll-mt-32 border-t border-line pt-7"
+              >
+                <header className="mb-7 flex items-baseline gap-4">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "numeral flex-none text-[0.75rem] transition-colors",
+                      done ? "text-positive" : "text-rose-dark",
+                    )}
+                  >
+                    {done ? (
+                      <Check size={14} aria-hidden="true" className="mt-1" />
+                    ) : (
+                      String(index + 1).padStart(2, "0")
+                    )}
+                  </span>
+                  <h3
+                    id={`step-heading-${step.step}`}
+                    className="display-4 flex-1"
+                  >
+                    {step.groups.map((group) => group.label).join(" · ")}
+                  </h3>
+                </header>
 
-              <div className="space-y-6">
-                {step.groups.map((group) => (
-                  <GroupControl
-                    key={group.key}
-                    dessert={dessert}
-                    group={group}
-                    state={state}
-                    onChange={onChange}
-                    error={errors[`config.${group.key}`]}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+                <div className="space-y-8 lg:pl-9">
+                  {step.groups.map((group) => (
+                    <GroupControl
+                      key={group.key}
+                      dessert={dessert}
+                      group={group}
+                      state={state}
+                      onChange={onChange}
+                      error={errors[`config.${group.key}`]}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       </div>
 
-      {/* --------------------------------------------------- Right column */}
-      <aside className="hidden lg:block lg:sticky lg:top-[110px]">
-        <div className="panel overflow-hidden bg-gradient-to-b from-blush-soft to-paper p-5">
-          <div className="flex items-center justify-between gap-3">
-            <span className="eyebrow eyebrow-plain text-[0.68rem]">
-              Вашият десерт
+      {/* ------------------------------------------------ Sticky preview */}
+      <aside className="hidden lg:sticky lg:top-[108px] lg:block">
+        <div className="border border-line bg-paper">
+          <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5">
+            <span className="label label-muted">Вашият десерт</span>
+            <span className="numeral text-[0.72rem] text-ink-soft">
+              {progress.answered} / {progress.total}
             </span>
-            <Badge tone="rose">
-              {progress.answered}/{progress.total}
-            </Badge>
           </div>
 
-          <div className="mt-3 aspect-square w-full">
+          <div className="aspect-square w-full p-4">
             <DessertPreview model={model} />
           </div>
 
-          <p className="mt-1 text-center font-[family-name:var(--font-display)] text-[1.4rem]">
+          <p className="border-t border-line px-5 py-3.5 text-center font-[family-name:var(--font-display)] text-[1.25rem]">
             {dessert.name}
           </p>
+
+          {summary.length > 0 ? (
+            <div className="border-t border-line px-5 py-4">
+              <ChoiceList lines={summary} />
+            </div>
+          ) : null}
         </div>
       </aside>
     </div>
@@ -176,44 +207,96 @@ export function CustomBuilder({
 
 /* ------------------------------------------------------------------ */
 
-function ProgressBar({
-  current,
-  total,
-  answered,
-  totalGroups,
+/** The running list of what has been chosen so far. */
+function ChoiceList({
+  lines,
+  className,
 }: {
-  current: number;
-  total: number;
-  answered: number;
-  totalGroups: number;
+  lines: { groupKey: string; groupLabel: string; value: string }[];
+  className?: string;
 }) {
-  const percent = totalGroups === 0 ? 0 : (answered / totalGroups) * 100;
+  return (
+    <dl className={cn("space-y-0", className)}>
+      {lines.map((line) => (
+        <div
+          key={line.groupKey}
+          className="flex items-baseline justify-between gap-4 border-b border-line py-2 last:border-0"
+        >
+          <dt className="text-[0.68rem] uppercase tracking-[0.12em] text-ink-faint">
+            {line.groupLabel}
+          </dt>
+          <dd className="text-right text-[0.82rem] font-semibold text-ink">
+            {line.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * Progress as a ruled index of the steps rather than a rounded bar.
+ * Each entry links to its section, so a long configuration stays
+ * navigable instead of requiring a scroll hunt.
+ */
+function StepRail({
+  steps,
+  answered,
+  total,
+}: {
+  steps: { key: number; label: string; done: boolean; index: number }[];
+  answered: number;
+  total: number;
+}) {
+  const percent = total === 0 ? 0 : (answered / total) * 100;
 
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[0.86rem] font-bold">
-          Стъпка {Math.max(1, current)} от {Math.max(1, total)}
-        </p>
-        <p className="text-[0.8rem] text-ink-soft">
-          {answered} от {totalGroups} избора
-        </p>
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="label label-muted">Стъпки</span>
+        <span className="numeral text-[0.72rem] text-ink-soft">
+          {answered} от {total} избора
+        </span>
       </div>
+
       <div
         role="progressbar"
         aria-valuenow={Math.round(percent)}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label="Напредък по конфигурацията"
-        className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line"
+        className="mt-3 h-px w-full bg-line"
       >
         <motion.div
-          className="h-full rounded-full bg-rose-dark"
+          className="h-px bg-rose-dark"
           initial={false}
           animate={{ width: `${percent}%` }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         />
       </div>
+
+      <nav aria-label="Стъпки в конфигуратора" className="mt-4">
+        <ol className="flex flex-wrap gap-x-6 gap-y-2">
+          {steps.map((step) => (
+            <li key={step.key}>
+              <a
+                href={`#step-${step.key}`}
+                className={cn(
+                  "link-underline flex items-baseline gap-2 text-[0.7rem] uppercase tracking-[0.12em] transition-colors",
+                  step.done
+                    ? "text-ink-faint hover:text-ink"
+                    : "font-bold text-ink hover:text-rose-dark",
+                )}
+              >
+                <span aria-hidden="true" className="numeral text-[0.62rem]">
+                  {step.done ? "✓" : String(step.index + 1).padStart(2, "0")}
+                </span>
+                <span className="max-w-[16ch] truncate">{step.label}</span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
     </div>
   );
 }
@@ -307,28 +390,36 @@ function GroupControl({
 
   return (
     <fieldset>
-      <legend className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-[0.79rem] font-extrabold tracking-[0.02em] text-ink-soft">
-        {group.label}
-        {group.isRequired ? <span className="text-rose-dark">*</span> : null}
+      <legend className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <span className="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-ink-faint">
+          {group.label}
+        </span>
+        {group.isRequired ? (
+          <span aria-hidden="true" className="text-rose-dark">
+            *
+          </span>
+        ) : null}
         {isMulti ? (
-          <span className="font-semibold normal-case text-ink-faint">
+          <span className="text-[0.7rem] normal-case tracking-normal text-ink-faint">
             (до {group.maxSelect})
           </span>
         ) : null}
       </legend>
 
       {group.helpText ? (
-        <p className="mt-1 text-[0.76rem] text-ink-faint">{group.helpText}</p>
+        <p className="mt-2 text-[0.78rem] leading-snug text-ink-faint">
+          {group.helpText}
+        </p>
       ) : null}
 
       <div
         role={isMulti ? "group" : "radiogroup"}
         aria-label={group.label}
         className={cn(
-          "mt-2.5 grid gap-2",
+          "mt-3.5 grid gap-2.5",
           isSwatchGroup
-            ? "grid-cols-2 sm:grid-cols-3"
-            : group.options.length > 6
+            ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+            : group.options.length > 4
               ? "sm:grid-cols-2"
               : "",
         )}
@@ -338,10 +429,10 @@ function GroupControl({
             <motion.div
               key={option.key}
               layout
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
               <OptionCard
                 selected={selected.includes(option.key)}
@@ -364,7 +455,9 @@ function GroupControl({
       </div>
 
       {error ? (
-        <p className="mt-2 text-[0.78rem] font-semibold text-danger">{error}</p>
+        <p className="mt-3 border-l-2 border-danger pl-3 text-[0.78rem] font-semibold text-danger">
+          {error}
+        </p>
       ) : null}
     </fieldset>
   );

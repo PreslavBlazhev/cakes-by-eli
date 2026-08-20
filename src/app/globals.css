@@ -3,72 +3,92 @@
 /* ==================================================================== *
  * Design tokens — Cakes by ELI
  *
- * The palette is carried over from the client's reference design and
- * extended with the semantic shades the application needs (surfaces,
- * states, admin chrome). Nothing here invents a new brand identity.
+ * Direction: an editorial patisserie monograph. Warm ivory paper,
+ * espresso ink, burgundy for the brand voice, muted gold and sage as
+ * quiet accents. Photography carries the seduction; the chrome stays
+ * flat, thin and out of the way.
+ *
+ * Token NAMES are stable on purpose — the admin panel styles against
+ * them in ~90 places — so the palette is re-pitched here rather than
+ * renamed across the codebase.
  * ==================================================================== */
 
 @theme {
-  /* Brand core */
-  --color-ink: #2f211d;
-  --color-ink-soft: #6f5b53;
-  --color-ink-faint: #9c8a82;
-  --color-cream: #fbf6ef;
-  --color-paper: #fffdf9;
-  --color-rose: #b86f7c;
-  --color-rose-dark: #8f4e5d;
-  --color-rose-deep: #743d4a;
-  --color-blush: #f0d9d9;
-  --color-blush-soft: #f8ecec;
-  --color-gold: #caa779;
-  --color-gold-soft: #e6d3b6;
-  --color-sage: #a7ad94;
-  --color-sage-soft: #d5d9cb;
-  --color-line: #eadfd3;
-  --color-line-strong: #ddcec0;
+  /* --- Ink ---------------------------------------------------------- */
+  --color-ink: #241a15; /* text-primary — espresso */
+  --color-ink-soft: #6a584d; /* text-secondary */
+  --color-ink-faint: #98867a; /* muted */
 
-  /* Derived surfaces */
-  --color-surface: #fffdf9;
-  --color-surface-sunk: #f5ece1;
-  --color-cocoa: #3a2a25;
-  --color-cocoa-deep: #241713;
+  /* --- Paper -------------------------------------------------------- */
+  --color-cream: #f6f1e8; /* background — warm ivory */
+  --color-paper: #fffdf8; /* surface */
+  --color-surface: #fffdf8;
+  --color-surface-sunk: #ece3d4; /* surface-alt — warm stone */
 
-  /* States */
-  --color-positive: #5d7a52;
-  --color-positive-soft: #e8efe2;
-  --color-warning: #b3833a;
-  --color-warning-soft: #f7ecd9;
-  --color-danger: #a8434b;
-  --color-danger-soft: #f7e2e3;
-  --color-info: #4f6f86;
-  --color-info-soft: #e4edf3;
+  /* --- Brand — burgundy --------------------------------------------- */
+  --color-rose: #8d3a4c;
+  --color-rose-dark: #6f2434; /* brand */
+  --color-rose-deep: #521a27; /* brand-dark */
+  --color-blush: #e8d3d1; /* dusty rose */
+  --color-blush-soft: #f6ece9;
 
-  /* Typography */
+  /* --- Accents ------------------------------------------------------ */
+  --color-gold: #a9854e; /* muted gold */
+  --color-gold-soft: #e0cfae;
+  --color-champagne: #ede0c8;
+  --color-sage: #82896f; /* subtle pistachio */
+  --color-sage-soft: #d2d7c6;
+
+  /* --- Structure ---------------------------------------------------- */
+  --color-line: #e3d7c5;
+  --color-line-strong: #cfbfa7;
+
+  /* --- Dark ground -------------------------------------------------- */
+  --color-cocoa: #2a1d18;
+  --color-cocoa-deep: #180f0c;
+
+  /* --- States ------------------------------------------------------- */
+  --color-positive: #4f6a45;
+  --color-positive-soft: #e6ecdf;
+  --color-warning: #9c6f2c;
+  --color-warning-soft: #f5e9d5;
+  --color-danger: #97303b;
+  --color-danger-soft: #f6dedf;
+  --color-info: #40607a;
+  --color-info-soft: #e1ebf1;
+
+  /* --- Typography --------------------------------------------------- */
   --font-sans:
-    var(--font-inter), Inter, ui-sans-serif, system-ui, -apple-system,
+    var(--font-manrope), Manrope, ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", sans-serif;
   --font-display:
-    var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman",
-    serif;
+    var(--font-display), "Playfair Display", Georgia, "Times New Roman", serif;
 
-  /* Radii */
-  --radius-xs: 10px;
-  --radius-sm: 14px;
-  --radius-md: 20px;
-  --radius-lg: 28px;
-  --radius-xl: 36px;
-  --radius-arch: 240px;
+  /* --- Radii -------------------------------------------------------- *
+   * Deliberately near-square. Soft pills everywhere are what makes a
+   * page read as a template; a 2–4px edge reads as print.
+   * ------------------------------------------------------------------ */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-arch: 50vw 50vw 4px 4px;
 
-  /* Elevation — warm-tinted, never neutral grey */
-  --shadow-soft: 0 12px 32px rgba(59, 36, 28, 0.08);
-  --shadow-card: 0 24px 70px rgba(59, 36, 28, 0.12);
-  --shadow-lift: 0 30px 80px rgba(59, 36, 28, 0.18);
-  --shadow-inset-line: inset 0 0 0 1px rgba(234, 223, 211, 0.9);
+  /* --- Elevation ---------------------------------------------------- *
+   * Used sparingly. Depth comes from photography and hairlines, not
+   * from stacking drop shadows on every card.
+   * ------------------------------------------------------------------ */
+  --shadow-soft: 0 1px 2px rgba(36, 26, 21, 0.05);
+  --shadow-card: 0 18px 46px -22px rgba(36, 26, 21, 0.35);
+  --shadow-lift: 0 30px 70px -30px rgba(36, 26, 21, 0.45);
+  --shadow-inset-line: inset 0 0 0 1px rgba(227, 215, 197, 0.9);
 
-  /* Layout */
-  --spacing-wrap: 1180px;
+  /* --- Layout ------------------------------------------------------- */
+  --spacing-wrap: 1280px;
+  --spacing-wrap-narrow: 940px;
 
-  /* Motion */
+  /* --- Motion ------------------------------------------------------- */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
 }
@@ -94,22 +114,23 @@
     background-color: var(--color-cream);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    line-height: 1.55;
+    font-size: 1rem;
+    line-height: 1.6;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* The reference design's paper grain — kept subtle and non-interactive. */
+  /* Paper grain — the one texture on the site, barely there. */
   body::before {
     content: "";
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 99;
-    opacity: 0.2;
+    opacity: 0.14;
     mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.10'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E");
   }
 
   body[data-chrome="admin"]::before {
@@ -121,8 +142,8 @@
   h3,
   h4 {
     font-family: var(--font-display);
-    font-weight: 500;
-    letter-spacing: -0.03em;
+    font-weight: 400;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
 
@@ -150,11 +171,10 @@
     color: inherit;
   }
 
-  /* A single, unmistakable focus treatment across the whole product. */
   :focus-visible {
     outline: 2px solid var(--color-rose-dark);
     outline-offset: 3px;
-    border-radius: 4px;
+    border-radius: 2px;
   }
 
   ::selection {
@@ -168,78 +188,128 @@
 }
 
 /* ==================================================================== *
- * Reusable primitives
+ * Layout primitives
  * ==================================================================== */
 
 @layer components {
   .wrap {
-    width: min(var(--spacing-wrap), calc(100% - 40px));
+    width: min(var(--spacing-wrap), calc(100% - 48px));
+    margin-inline: auto;
+  }
+
+  .wrap-narrow {
+    width: min(var(--spacing-wrap-narrow), calc(100% - 48px));
     margin-inline: auto;
   }
 
   @media (max-width: 640px) {
-    .wrap {
-      width: calc(100% - 28px);
+    .wrap,
+    .wrap-narrow {
+      width: calc(100% - 32px);
     }
   }
 
+  /* ---------------------------------------------------------- Labels */
+
+  /* Small-caps editorial label. No leading dash by default — the dash
+     was doing decorative work on every single section heading. */
+  .label {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    color: var(--color-rose-dark);
+  }
+
+  .label-muted {
+    color: var(--color-ink-faint);
+  }
+
+  .label-light {
+    color: var(--color-gold-soft);
+  }
+
+  /* Kept for the admin panel, which styles against `.eyebrow`. */
   .eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 10px;
     color: var(--color-rose-dark);
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     line-height: 1.2;
-  }
-
-  .eyebrow::before {
-    content: "";
-    width: 34px;
-    height: 1px;
-    background: currentColor;
-    flex: none;
   }
 
   .eyebrow-plain::before {
     display: none;
   }
 
+  /* ------------------------------------------------------ Display type */
+
   .display-1 {
     font-family: var(--font-display);
-    font-size: clamp(3rem, 8vw, 6.6rem);
-    line-height: 0.94;
-    letter-spacing: -0.035em;
+    font-size: clamp(3.1rem, 7.4vw, 6.4rem);
+    line-height: 0.98;
+    letter-spacing: -0.028em;
+    font-weight: 400;
   }
 
   .display-2 {
     font-family: var(--font-display);
-    font-size: clamp(2.3rem, 5vw, 4.4rem);
-    line-height: 1.02;
-    letter-spacing: -0.032em;
+    font-size: clamp(2.25rem, 4.6vw, 3.9rem);
+    line-height: 1.04;
+    letter-spacing: -0.024em;
+    font-weight: 400;
   }
 
   .display-3 {
     font-family: var(--font-display);
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
-    line-height: 1.1;
-    letter-spacing: -0.025em;
+    font-size: clamp(1.55rem, 2.4vw, 2.05rem);
+    line-height: 1.15;
+    letter-spacing: -0.018em;
+    font-weight: 400;
+  }
+
+  .display-4 {
+    font-family: var(--font-display);
+    font-size: clamp(1.2rem, 1.6vw, 1.42rem);
+    line-height: 1.25;
+    letter-spacing: -0.012em;
+    font-weight: 400;
+  }
+
+  /* Italic display, for pull quotes and the accent line in headlines. */
+  .display-italic {
+    font-style: italic;
+    font-weight: 400;
   }
 
   .lede {
-    font-size: clamp(1rem, 1.4vw, 1.13rem);
+    font-size: clamp(1.02rem, 1.1vw, 1.14rem);
+    line-height: 1.65;
     color: var(--color-ink-soft);
-    max-width: 62ch;
+    max-width: 58ch;
   }
 
-  .hairline {
+  /* ------------------------------------------------------- Structure */
+
+  .rule {
     border: 0;
     border-top: 1px solid var(--color-line);
   }
 
-  /* Paper card used across public and admin surfaces. */
+  .rule-strong {
+    border: 0;
+    border-top: 1px solid var(--color-line-strong);
+  }
+
+  /* Flat paper panel. No shadow — a border and the ivory ground are
+     enough separation, and shadows on every box is the tell of a
+     template. */
   .panel {
     background: var(--color-paper);
     border: 1px solid var(--color-line);
@@ -252,13 +322,60 @@
     border-radius: var(--radius-md);
   }
 
+  /* Photographic frame: a hairline drawn *inside* the image so the
+     crop reads as deliberate rather than as a floating rectangle. */
+  .frame {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunk);
+  }
+
+  .frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(36, 26, 21, 0.09);
+  }
+
+  /* Link that underlines from the left on hover. */
+  .link-underline {
+    position: relative;
+    display: inline-block;
+  }
+
+  .link-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 100%;
+    bottom: -2px;
+    height: 1px;
+    background: currentColor;
+    transition: right 0.35s var(--ease-out-soft);
+  }
+
+  .link-underline:hover::after,
+  .link-underline[data-active="true"]::after {
+    right: 0;
+  }
+
+  /* Numerals used as editorial ornament (index rows, steps). */
+  .numeral {
+    font-family: var(--font-display);
+    font-variant-numeric: lining-nums tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
   .print-only {
     display: none;
   }
 }
 
 /* ==================================================================== *
- * Marquee
+ * Motion
  * ==================================================================== */
 
 @keyframes cbe-marquee {
@@ -268,14 +385,14 @@
 }
 
 .marquee-track {
-  animation: cbe-marquee 28s linear infinite;
+  animation: cbe-marquee 42s linear infinite;
   will-change: transform;
 }
 
 @keyframes cbe-fade-up {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -284,7 +401,23 @@
 }
 
 .fade-up {
-  animation: cbe-fade-up 0.5s var(--ease-out-soft) both;
+  animation: cbe-fade-up 0.6s var(--ease-out-soft) both;
+}
+
+/* Image reveal: the photograph rises into its frame on first paint. */
+@keyframes cbe-reveal {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reveal {
+  animation: cbe-reveal 0.9s var(--ease-out-soft) both;
 }
 
 /* ==================================================================== *

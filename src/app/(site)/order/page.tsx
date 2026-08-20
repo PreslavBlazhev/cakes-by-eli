@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { Container, Eyebrow } from "@/components/ui/primitives";
+import { PageHeader } from "@/components/site/PageHeader";
 import { OrderFlow } from "@/features/order/OrderFlow";
 import type { OrderFlowData, OrderProductOption } from "@/features/order/types";
 import type { DessertTypeConfig } from "@/features/configurator/types";
@@ -133,26 +133,23 @@ export default async function OrderPage({ searchParams }: SearchParams) {
 
   return (
     <>
-      <section className="relative overflow-hidden pb-8 pt-12 lg:pt-16">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-40 -top-44 -z-10 size-[360px] rounded-full bg-blush opacity-55"
-        />
-        <Container>
-          <Eyebrow>Поръчка</Eyebrow>
-          <h1 className="display-1 mt-4">
+      <PageHeader
+        crumbs={[
+          { href: "/", label: "Начало" },
+          { href: "/order", label: "Поръчка" },
+        ]}
+        label="Поръчка"
+        title={
+          <>
             Разкажете какво
             <br />
-            си представяте.
-          </h1>
-          <p className="lede mt-5 max-w-[720px] text-[1.06rem]">
-            Изберете готов продукт от менюто или създайте свой десерт стъпка по
-            стъпка — с жива визуализация на всеки избор.
-          </p>
-        </Container>
-      </section>
+            <em className="display-italic">си представяте.</em>
+          </>
+        }
+        intro="Изберете готов продукт от менюто или създайте свой десерт стъпка по стъпка — с жива визуализация на всеки избор."
+      />
 
-      <div className="pb-20">
+      <div className="pb-24">
         <OrderFlow data={data} />
       </div>
     </>

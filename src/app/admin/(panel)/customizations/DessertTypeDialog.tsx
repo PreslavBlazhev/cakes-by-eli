@@ -44,7 +44,7 @@ export function DessertTypeDialog({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa"
+        className="inline-flex min-h-10 items-center gap-2 rounded-[3px] bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa"
       >
         {existing ? (
           "Редактирай вида"
@@ -175,7 +175,7 @@ export function DessertTypeDialog({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="inline-flex min-h-10 items-center rounded-full border border-line px-4 text-[0.86rem] font-semibold transition-colors hover:bg-surface-sunk"
+                  className="inline-flex min-h-10 items-center rounded-[3px] border border-line px-4 text-[0.86rem] font-semibold transition-colors hover:bg-surface-sunk"
                 >
                   Отказ
                 </button>

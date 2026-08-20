@@ -158,7 +158,7 @@ export function OrderFilters() {
               setSearch("");
               router.push("/admin/orders");
             }}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.78rem] font-semibold text-ink-soft transition-colors hover:bg-surface-sunk hover:text-ink"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-[3px] px-3 py-1.5 text-[0.78rem] font-semibold text-ink-soft transition-colors hover:bg-surface-sunk hover:text-ink"
           >
             <X size={13} aria-hidden="true" />
             Изчисти филтрите
@@ -184,7 +184,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex min-h-8 items-center rounded-full border px-3 text-[0.78rem] font-semibold transition-colors",
+        "inline-flex min-h-8 items-center rounded-[3px] border px-3 text-[0.78rem] font-semibold transition-colors",
         active
           ? "border-ink bg-ink text-paper"
           : "border-line bg-paper text-ink-soft hover:border-ink hover:text-ink",

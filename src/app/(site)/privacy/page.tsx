@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { Container, Eyebrow, Section } from "@/components/ui/primitives";
+import { PageHeader } from "@/components/site/PageHeader";
+import { Container, Section } from "@/components/ui/primitives";
 import { getSettings } from "@/server/queries/settings";
 
 export const dynamic = "force-dynamic";
@@ -18,21 +19,25 @@ export default async function PrivacyPage() {
 
   return (
     <>
-      <section className="pb-4 pt-14 lg:pt-20">
-        <Container>
-          <Eyebrow>Поверителност</Eyebrow>
-          <h1 className="display-1 mt-4">
+      <PageHeader
+        crumbs={[
+          { href: "/", label: "Начало" },
+          { href: "/privacy", label: "Поверителност" },
+        ]}
+        label="Правна информация"
+        title={
+          <>
             Политика за
             <br />
-            поверителност.
-          </h1>
-        </Container>
-      </section>
+            <em className="display-italic">поверителност.</em>
+          </>
+        }
+      />
 
-      <Section tone="cream" className="pt-8">
+      <Section tone="cream" size="sm" className="pt-0">
         <Container>
-          <div className="panel max-w-[820px] p-8 sm:p-11">
-            <p className="rounded-[var(--radius-sm)] border border-warning/30 bg-warning-soft px-4 py-3 text-[0.86rem] text-warning">
+          <div className="max-w-[68ch] border-t border-line pt-10">
+            <p className="border-l-2 border-warning bg-warning-soft px-5 py-4 text-[0.86rem] leading-relaxed text-warning">
               <strong>Бележка към собственика:</strong> текстът по-долу описва
               коректно какви данни събира сайтът, но полетата за юридическо лице
               (наименование, ЕИК, адрес на управление, имейл за връзка) трябва да

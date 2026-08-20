@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { Clock, Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 
+import { PageHeader } from "@/components/site/PageHeader";
 import { SocialLinks } from "@/components/site/SocialLinks";
 import { ButtonLink, ExternalButtonLink } from "@/components/ui/Button";
-import {
-  Badge,
-  Container,
-  Eyebrow,
-  Section,
-} from "@/components/ui/primitives";
+import { Badge, Container, Label, Section } from "@/components/ui/primitives";
+import { cn } from "@/lib/cn";
 import { formatDate, shortTime } from "@/lib/format";
 import { WEEKDAY_LABELS } from "@/lib/labels";
 import { todayStatusSentence } from "@/lib/schedule";
@@ -45,59 +42,60 @@ export default async function ContactsPage() {
   const phoneHref = settings.phone
     ? `tel:${settings.phone.replace(/[^\d+]/g, "")}`
     : null;
+  const todayIndex = new Date().getDay();
 
   return (
     <>
-      <section className="relative overflow-hidden pb-6 pt-14 lg:pt-20">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-40 -top-44 -z-10 size-[360px] rounded-full bg-blush opacity-55"
-        />
-        <Container>
-          <Eyebrow>Контакти</Eyebrow>
-          <h1 className="display-1 mt-4">
+      <PageHeader
+        crumbs={[
+          { href: "/", label: "Начало" },
+          { href: "/contacts", label: "Контакти" },
+        ]}
+        label="Контакти"
+        title={
+          <>
             Нека уточним
             <br />
-            вашата идея.
-          </h1>
-          {settings.contactIntro ? (
-            <p className="lede mt-5 max-w-[720px] text-[1.06rem]">
-              {settings.contactIntro}
-            </p>
-          ) : null}
-        </Container>
-      </section>
+            <em className="display-italic">вашата идея.</em>
+          </>
+        }
+        intro={settings.contactIntro || undefined}
+        aside={
+          <Badge tone={status.isOpen ? "positive" : "muted"}>{status.text}</Badge>
+        }
+      />
 
-      <Section tone="cream" className="pt-10">
+      {/* ------------------------------------------------- Call to action */}
+      <Section tone="cream" size="sm" className="pt-0">
         <Container>
-          <div className="grid gap-5 lg:grid-cols-2">
-            {/* Phone card */}
-            <div className="flex flex-col justify-between rounded-[var(--radius-lg)] bg-cocoa p-8 text-paper sm:p-10">
+          <div className="grid overflow-hidden rounded-[var(--radius-lg)] border border-line lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="flex flex-col justify-between gap-10 bg-cocoa p-9 text-paper sm:p-12">
               <div>
-                <span className="eyebrow text-[#e7b7bd]">Телефон</span>
-                <h2 className="display-3 mt-3 text-paper">Поръчки и въпроси</h2>
-                <p className="mt-3 text-[0.95rem] text-[#d8cbc4]">
+                <Label tone="light">Телефон</Label>
+                <h2 className="display-3 mt-4 text-paper">
+                  Поръчки
+                  <br />и въпроси
+                </h2>
+                <p className="mt-4 max-w-[36ch] text-[0.94rem] leading-relaxed text-[#c9b8ad]">
                   Най-бързият начин за уточняване на свободна дата и основните
                   детайли по поръчката.
                 </p>
               </div>
+
               {settings.phone && phoneHref ? (
                 <a
                   href={phoneHref}
-                  className="mt-8 flex items-center gap-3 font-[family-name:var(--font-display)] text-[clamp(1.8rem,5vw,2.9rem)] leading-none transition-opacity hover:opacity-80"
+                  className="numeral block font-[family-name:var(--font-display)] text-[clamp(1.9rem,4.6vw,3rem)] leading-none transition-opacity hover:opacity-75"
                 >
-                  <Phone size={26} aria-hidden="true" className="flex-none" />
                   {settings.phone}
                 </a>
               ) : (
-                <p className="mt-8 text-[0.95rem] text-[#d8cbc4]">
+                <p className="text-[0.95rem] text-[#c9b8ad]">
                   Телефонът ще бъде добавен скоро.
                 </p>
               )}
-              <div className="mt-7 flex flex-wrap items-center justify-between gap-4">
-                <Badge tone={status.isOpen ? "positive" : "muted"}>
-                  {status.text}
-                </Badge>
+
+              <div className="border-t border-[#4a3730] pt-6">
                 <SocialLinks
                   facebookUrl={settings.facebookUrl}
                   instagramUrl={settings.instagramUrl}
@@ -106,43 +104,53 @@ export default async function ContactsPage() {
               </div>
             </div>
 
-            {/* Address card */}
-            <div className="flex flex-col justify-between rounded-[var(--radius-lg)] border border-line bg-paper p-8 sm:p-10">
+            <div className="flex flex-col justify-between gap-10 bg-paper p-9 sm:p-12">
               <div>
-                <Eyebrow>Адрес</Eyebrow>
-                <h2 className="display-3 mt-3">{settings.businessName}</h2>
-                {settings.addressLine ? (
-                  <p className="mt-4 flex items-start gap-2.5 text-[1rem] text-ink-soft">
-                    <MapPin
-                      size={18}
-                      aria-hidden="true"
-                      className="mt-1 flex-none text-rose-dark"
-                    />
-                    <span>
-                      {settings.addressLine}
-                      <br />
-                      {settings.city}
-                    </span>
-                  </p>
-                ) : null}
-                {settings.email ? (
-                  <p className="mt-3 flex items-start gap-2.5 text-[1rem] text-ink-soft">
-                    <Mail
-                      size={18}
-                      aria-hidden="true"
-                      className="mt-1 flex-none text-rose-dark"
-                    />
-                    <a
-                      href={`mailto:${settings.email}`}
-                      className="transition-colors hover:text-rose-dark"
-                    >
-                      {settings.email}
-                    </a>
-                  </p>
-                ) : null}
+                <Label>Ателието</Label>
+                <h2 className="display-3 mt-4">{settings.businessName}</h2>
+
+                <dl className="mt-7 border-t border-line">
+                  {settings.addressLine ? (
+                    <div className="flex items-start gap-3 border-b border-line py-4">
+                      <dt className="flex-none pt-0.5">
+                        <MapPin
+                          size={16}
+                          aria-hidden="true"
+                          className="text-rose-dark"
+                        />
+                        <span className="sr-only">Адрес</span>
+                      </dt>
+                      <dd className="text-[0.98rem] leading-relaxed text-ink-soft">
+                        {settings.addressLine}
+                        <br />
+                        {settings.city}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {settings.email ? (
+                    <div className="flex items-start gap-3 border-b border-line py-4">
+                      <dt className="flex-none pt-0.5">
+                        <Mail
+                          size={16}
+                          aria-hidden="true"
+                          className="text-rose-dark"
+                        />
+                        <span className="sr-only">Имейл</span>
+                      </dt>
+                      <dd className="text-[0.98rem] text-ink-soft">
+                        <a
+                          href={`mailto:${settings.email}`}
+                          className="link-underline transition-colors hover:text-rose-dark"
+                        >
+                          {settings.email}
+                        </a>
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
               </div>
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3">
                 <ButtonLink href="/order" variant="rose">
                   Направи поръчка
                 </ButtonLink>
@@ -154,74 +162,109 @@ export default async function ContactsPage() {
               </div>
             </div>
           </div>
+        </Container>
+      </Section>
 
-          {/* Hours */}
-          <div className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="panel p-8 sm:p-10">
-              <div className="flex items-center gap-2.5">
-                <Clock size={18} aria-hidden="true" className="text-rose-dark" />
-                <h2 className="display-3">Работно време</h2>
-              </div>
-
-              <ul className="mt-6 divide-y divide-line">
-                {hours.map((row) => (
-                  <li
-                    key={row.weekday}
-                    className="flex items-center justify-between gap-4 py-3 text-[0.95rem]"
-                  >
-                    <span className="font-semibold">
-                      {WEEKDAY_LABELS[row.weekday]}
-                    </span>
-                    <span
-                      className={
-                        row.isClosed ? "text-ink-faint" : "text-ink-soft"
-                      }
-                    >
-                      {row.isClosed || !row.opensAt || !row.closesAt
-                        ? "Почивен ден"
-                        : `${shortTime(row.opensAt)} – ${shortTime(row.closesAt)}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
+      {/* ------------------------------------------------------- Schedule */}
+      <Section tone="paper" size="sm">
+        <Container>
+          <div className="grid gap-10 border-t border-line pt-9 lg:grid-cols-[0.3fr_0.7fr] lg:gap-16">
+            <div>
+              <Label>Кога работим</Label>
+              <h2 className="display-3 mt-4">
+                Работно
+                <br />
+                време
+              </h2>
               {status.note ? (
-                <p className="mt-5 rounded-[var(--radius-sm)] border border-warning/25 bg-warning-soft px-4 py-3 text-[0.88rem] text-warning">
+                <p className="mt-6 border-l-2 border-warning bg-warning-soft px-4 py-3 text-[0.86rem] leading-relaxed text-warning">
                   {status.note}
                 </p>
               ) : null}
             </div>
 
-            <div className="panel p-8 sm:p-10">
-              <h2 className="display-3">Почивки и изключения</h2>
-              {exceptions.length === 0 ? (
-                <p className="mt-4 text-[0.94rem] text-ink-soft">
-                  В момента няма обявени промени в работното време.
-                </p>
-              ) : (
-                <ul className="mt-6 space-y-3">
-                  {exceptions.slice(0, 8).map((exception) => (
+            <div className="grid gap-x-16 gap-y-10 sm:grid-cols-2">
+              {/* Weekly hours — today is marked, which is the only thing
+                  anyone actually looks for in this table. */}
+              <ul>
+                {hours.map((row) => {
+                  const isToday = row.weekday === todayIndex;
+                  return (
                     <li
-                      key={exception.date}
-                      className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line pb-3 last:border-0"
+                      key={row.weekday}
+                      className={cn(
+                        "flex items-baseline justify-between gap-4 border-b border-line py-3 text-[0.94rem]",
+                        isToday && "border-b-ink",
+                      )}
                     >
-                      <span className="font-semibold">
-                        {formatDate(exception.date)}
+                      <span
+                        className={cn(
+                          "flex items-center gap-2.5",
+                          isToday ? "font-bold text-ink" : "text-ink-soft",
+                        )}
+                      >
+                        {isToday ? (
+                          <span
+                            aria-hidden="true"
+                            className="size-1.5 rounded-full bg-rose-dark"
+                          />
+                        ) : (
+                          <span aria-hidden="true" className="size-1.5" />
+                        )}
+                        {WEEKDAY_LABELS[row.weekday]}
+                        {isToday ? <span className="sr-only">(днес)</span> : null}
                       </span>
-                      <span className="text-[0.9rem] text-ink-soft">
-                        {exception.isClosed
-                          ? "Затворено"
-                          : `${shortTime(exception.opensAt)} – ${shortTime(exception.closesAt)}`}
+                      <span
+                        className={cn(
+                          "numeral",
+                          row.isClosed ? "text-ink-faint" : "text-ink-soft",
+                          isToday && !row.isClosed && "font-bold text-ink",
+                        )}
+                      >
+                        {row.isClosed || !row.opensAt || !row.closesAt
+                          ? "Почивен ден"
+                          : `${shortTime(row.opensAt)} – ${shortTime(row.closesAt)}`}
                       </span>
-                      {exception.note ? (
-                        <span className="w-full text-[0.84rem] text-ink-faint">
-                          {exception.note}
-                        </span>
-                      ) : null}
                     </li>
-                  ))}
-                </ul>
-              )}
+                  );
+                })}
+              </ul>
+
+              <div>
+                <h3 className="text-[0.68rem] uppercase tracking-[0.18em] text-ink-faint">
+                  Почивки и изключения
+                </h3>
+                {exceptions.length === 0 ? (
+                  <p className="mt-5 text-[0.92rem] leading-relaxed text-ink-soft">
+                    В момента няма обявени промени в работното време.
+                  </p>
+                ) : (
+                  <ul className="mt-4">
+                    {exceptions.slice(0, 8).map((exception) => (
+                      <li
+                        key={exception.date}
+                        className="border-b border-line py-3"
+                      >
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <span className="numeral text-[0.92rem] font-semibold">
+                            {formatDate(exception.date)}
+                          </span>
+                          <span className="numeral text-[0.88rem] text-ink-soft">
+                            {exception.isClosed
+                              ? "Затворено"
+                              : `${shortTime(exception.opensAt)} – ${shortTime(exception.closesAt)}`}
+                          </span>
+                        </div>
+                        {exception.note ? (
+                          <p className="mt-1 text-[0.82rem] text-ink-faint">
+                            {exception.note}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         </Container>
