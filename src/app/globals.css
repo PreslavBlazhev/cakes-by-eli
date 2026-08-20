@@ -1,0 +1,349 @@
+@import "tailwindcss";
+
+/* ==================================================================== *
+ * Design tokens — Cakes by ELI
+ *
+ * The palette is carried over from the client's reference design and
+ * extended with the semantic shades the application needs (surfaces,
+ * states, admin chrome). Nothing here invents a new brand identity.
+ * ==================================================================== */
+
+@theme {
+  /* Brand core */
+  --color-ink: #2f211d;
+  --color-ink-soft: #6f5b53;
+  --color-ink-faint: #9c8a82;
+  --color-cream: #fbf6ef;
+  --color-paper: #fffdf9;
+  --color-rose: #b86f7c;
+  --color-rose-dark: #8f4e5d;
+  --color-rose-deep: #743d4a;
+  --color-blush: #f0d9d9;
+  --color-blush-soft: #f8ecec;
+  --color-gold: #caa779;
+  --color-gold-soft: #e6d3b6;
+  --color-sage: #a7ad94;
+  --color-sage-soft: #d5d9cb;
+  --color-line: #eadfd3;
+  --color-line-strong: #ddcec0;
+
+  /* Derived surfaces */
+  --color-surface: #fffdf9;
+  --color-surface-sunk: #f5ece1;
+  --color-cocoa: #3a2a25;
+  --color-cocoa-deep: #241713;
+
+  /* States */
+  --color-positive: #5d7a52;
+  --color-positive-soft: #e8efe2;
+  --color-warning: #b3833a;
+  --color-warning-soft: #f7ecd9;
+  --color-danger: #a8434b;
+  --color-danger-soft: #f7e2e3;
+  --color-info: #4f6f86;
+  --color-info-soft: #e4edf3;
+
+  /* Typography */
+  --font-sans:
+    var(--font-inter), Inter, ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-display:
+    var(--font-display), "Cormorant Garamond", Georgia, "Times New Roman",
+    serif;
+
+  /* Radii */
+  --radius-xs: 10px;
+  --radius-sm: 14px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+  --radius-xl: 36px;
+  --radius-arch: 240px;
+
+  /* Elevation — warm-tinted, never neutral grey */
+  --shadow-soft: 0 12px 32px rgba(59, 36, 28, 0.08);
+  --shadow-card: 0 24px 70px rgba(59, 36, 28, 0.12);
+  --shadow-lift: 0 30px 80px rgba(59, 36, 28, 0.18);
+  --shadow-inset-line: inset 0 0 0 1px rgba(234, 223, 211, 0.9);
+
+  /* Layout */
+  --spacing-wrap: 1180px;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* ==================================================================== *
+ * Base
+ * ==================================================================== */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The reference design's paper grain — kept subtle and non-interactive. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 99;
+    opacity: 0.2;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.10'/%3E%3C/svg%3E");
+  }
+
+  body[data-chrome="admin"]::before {
+    display: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  img,
+  svg,
+  video {
+    display: block;
+    max-width: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* A single, unmistakable focus treatment across the whole product. */
+  :focus-visible {
+    outline: 2px solid var(--color-rose-dark);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--color-blush);
+    color: var(--color-ink);
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* ==================================================================== *
+ * Reusable primitives
+ * ==================================================================== */
+
+@layer components {
+  .wrap {
+    width: min(var(--spacing-wrap), calc(100% - 40px));
+    margin-inline: auto;
+  }
+
+  @media (max-width: 640px) {
+    .wrap {
+      width: calc(100% - 28px);
+    }
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--color-rose-dark);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+
+  .eyebrow::before {
+    content: "";
+    width: 34px;
+    height: 1px;
+    background: currentColor;
+    flex: none;
+  }
+
+  .eyebrow-plain::before {
+    display: none;
+  }
+
+  .display-1 {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 8vw, 6.6rem);
+    line-height: 0.94;
+    letter-spacing: -0.035em;
+  }
+
+  .display-2 {
+    font-family: var(--font-display);
+    font-size: clamp(2.3rem, 5vw, 4.4rem);
+    line-height: 1.02;
+    letter-spacing: -0.032em;
+  }
+
+  .display-3 {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+
+  .lede {
+    font-size: clamp(1rem, 1.4vw, 1.13rem);
+    color: var(--color-ink-soft);
+    max-width: 62ch;
+  }
+
+  .hairline {
+    border: 0;
+    border-top: 1px solid var(--color-line);
+  }
+
+  /* Paper card used across public and admin surfaces. */
+  .panel {
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+  }
+
+  .panel-sm {
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+  }
+
+  .print-only {
+    display: none;
+  }
+}
+
+/* ==================================================================== *
+ * Marquee
+ * ==================================================================== */
+
+@keyframes cbe-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: cbe-marquee 28s linear infinite;
+  will-change: transform;
+}
+
+@keyframes cbe-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fade-up {
+  animation: cbe-fade-up 0.5s var(--ease-out-soft) both;
+}
+
+/* ==================================================================== *
+ * Accessibility — motion
+ * ==================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==================================================================== *
+ * Print — the kitchen order sheet
+ * ==================================================================== */
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  .no-print,
+  header[data-site-header],
+  footer[data-site-footer],
+  [data-admin-sidebar],
+  [data-admin-topbar] {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .panel,
+  .panel-sm {
+    border-color: #999;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}
