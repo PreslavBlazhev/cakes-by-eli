@@ -39,9 +39,13 @@ const schema = z.object({
   SESSION_SECRET: optionalString,
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(12),
 
-  /** Bootstrap admin account, consumed by `npm run db:seed`. */
+  /**
+   * The admin credentials, in plain text. Both are compared directly against
+   * what the login form submits, so they are the whole of the admin account:
+   * without them nobody can sign in.
+   */
   ADMIN_EMAIL: optionalString,
-  ADMIN_PASSWORD_HASH: optionalString,
+  ADMIN_PASSWORD: optionalString,
   ADMIN_NAME: optionalString,
 
   /** E-mail delivery. `console` writes to the server log instead of sending. */
@@ -126,6 +130,11 @@ export function sessionSecret(): Uint8Array {
 /** Configuration gaps the admin UI surfaces instead of failing silently. */
 export function configurationWarnings(): string[] {
   const out: string[] = [];
+  if (!env.ADMIN_EMAIL || !env.ADMIN_PASSWORD) {
+    out.push(
+      "ADMIN_EMAIL / ADMIN_PASSWORD липсват — вход в административния панел е невъзможен.",
+    );
+  }
   if (!env.OWNER_NOTIFICATION_EMAIL) {
     out.push(
       "OWNER_NOTIFICATION_EMAIL не е зададен — известията за нови поръчки няма къде да се изпратят.",

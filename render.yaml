@@ -67,8 +67,8 @@ services:
 
       - key: ADMIN_EMAIL
         sync: false
-      # Генерира се локално с:  npm run admin:hash -- "паролата"
-      - key: ADMIN_PASSWORD_HASH
+      # Паролата в чист вид — с нея се влиза в /admin.
+      - key: ADMIN_PASSWORD
         sync: false
       - key: ADMIN_NAME
         sync: false

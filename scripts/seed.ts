@@ -49,19 +49,17 @@ import {
  *   --reset-config    re-sync the configurator definitions (drops customisation
  *                     groups/options/rules for the seeded dessert types)
  *   --force-content   overwrite site settings and working hours
- *   --force-admin     rewrite the admin password hash from the environment
  *   --no-demo         skip demo products and gallery artwork
  */
 const flags = new Set(process.argv.slice(2));
 const withDemoPrices = flags.has("--demo-prices");
 const resetConfig = flags.has("--reset-config");
 const forceContent = flags.has("--force-content");
-const forceAdmin = flags.has("--force-admin");
 const skipDemo = flags.has("--no-demo");
 
 /**
  * One line per step, prefixed so it is greppable in Render's deploy log.
- * Nothing here may include a password hash, an API key or a connection string.
+ * Nothing here may include a password, an API key or a connection string.
  */
 const log = (message: string) => console.log(`[seed] ${message}`);
 
@@ -495,16 +493,18 @@ async function insertConfiguration(
   }
 }
 
+/**
+ * The admin row carries no password — the credentials are ADMIN_EMAIL and
+ * ADMIN_PASSWORD from the environment. Creating it here is a convenience:
+ * login creates it on its own if the seed never ran.
+ */
 async function seedAdmin() {
-  if (!env.ADMIN_EMAIL || !env.ADMIN_PASSWORD_HASH) {
-    log("Admin: skipped (ADMIN_EMAIL / ADMIN_PASSWORD_HASH not set)");
+  if (!env.ADMIN_EMAIL) {
+    log("Admin: skipped (ADMIN_EMAIL not set)");
     return;
   }
-
-  if (!env.ADMIN_PASSWORD_HASH.startsWith("scrypt$")) {
-    throw new Error(
-      "ADMIN_PASSWORD_HASH не изглежда като хеш. Генерирайте го с `npm run admin:hash -- \"парола\"`.",
-    );
+  if (!env.ADMIN_PASSWORD) {
+    log("Admin: ADMIN_PASSWORD not set — login will be impossible");
   }
 
   const email = env.ADMIN_EMAIL.toLowerCase();
@@ -514,30 +514,12 @@ async function seedAdmin() {
     .where(sql`lower(${adminUsers.email}) = ${email}`);
 
   if (existing.length > 0) {
-    // The account is business data once it exists. Silently re-applying the
-    // hash from the environment on every deploy would undo a password the
-    // owner changed herself, and would resurrect the account's original
-    // password from a stale Render variable — so rotation is opt-in.
-    if (!forceAdmin) {
-      log(`Admin: existing (${email})`);
-      return;
-    }
-
-    await db
-      .update(adminUsers)
-      .set({
-        passwordHash: env.ADMIN_PASSWORD_HASH,
-        name: env.ADMIN_NAME ?? "Администратор",
-        updatedAt: new Date(),
-      })
-      .where(eq(adminUsers.id, existing[0].id));
-    log(`Admin: password rotated (${email}, --force-admin)`);
+    log(`Admin: existing (${email})`);
     return;
   }
 
   await db.insert(adminUsers).values({
     email: env.ADMIN_EMAIL,
-    passwordHash: env.ADMIN_PASSWORD_HASH,
     name: env.ADMIN_NAME ?? "Администратор",
   });
   log(`Admin: created (${email})`);

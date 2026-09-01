@@ -10,7 +10,6 @@ import {
   todayInSofia,
 } from "@/lib/format";
 import { slugify, transliterate, uniqueSlug } from "@/lib/slug";
-import { hashPassword, verifyPassword } from "@/lib/password";
 import { rateLimit, resetRateLimit } from "@/lib/rate-limit";
 import {
   isDateBlockedForOrders,
@@ -257,30 +256,6 @@ describe("text hardening", () => {
     expect(escapeHtml(`<img src=x onerror="alert('x')">`)).toBe(
       "&lt;img src=x onerror=&quot;alert(&#39;x&#39;)&quot;&gt;",
     );
-  });
-});
-
-describe("password hashing", () => {
-  it("verifies a correct password and rejects a wrong one", async () => {
-    const hash = await hashPassword("a-strong-password");
-    expect(hash.startsWith("scrypt$")).toBe(true);
-    expect(await verifyPassword("a-strong-password", hash)).toBe(true);
-    expect(await verifyPassword("a-strong-passworD", hash)).toBe(false);
-  });
-
-  it("produces a different hash each time", async () => {
-    const a = await hashPassword("a-strong-password");
-    const b = await hashPassword("a-strong-password");
-    expect(a).not.toBe(b);
-  });
-
-  it("refuses a password that is too short", async () => {
-    await expect(hashPassword("short")).rejects.toThrow();
-  });
-
-  it("rejects a malformed stored hash instead of throwing", async () => {
-    expect(await verifyPassword("x", "not-a-hash")).toBe(false);
-    expect(await verifyPassword("x", "scrypt$a$b$c$d$e")).toBe(false);
   });
 });
 

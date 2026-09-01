@@ -5,16 +5,20 @@ import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { adminSessions, adminUsers, loginAttempts } from "@/db/schema";
 import { env, isProduction } from "@/lib/env";
-import { verifyPassword } from "@/lib/password";
 import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * Admin authentication.
  *
- * The cookie holds a 32-byte random token; only its SHA-256 digest is stored,
- * so the session table is not a source of usable credentials. Sessions are
- * revocable, expire server-side, and the cookie is HTTP-only, SameSite=Lax and
- * Secure in production.
+ * The credentials are the plain `ADMIN_EMAIL` and `ADMIN_PASSWORD` from the
+ * environment, compared directly against what the login form submits — the
+ * database stores no password at all. Whoever can read the environment can
+ * therefore sign in, so those variables are the secret to protect.
+ *
+ * The session that follows is unchanged: the cookie holds a 32-byte random
+ * token and only its SHA-256 digest is stored, so the session table is not a
+ * source of usable credentials. Sessions are revocable, expire server-side,
+ * and the cookie is HTTP-only, SameSite=Lax and Secure in production.
  */
 
 export const SESSION_COOKIE = "cbe_admin_session";
@@ -70,25 +74,35 @@ export async function login(
     };
   }
 
-  const rows = await db
-    .select()
-    .from(adminUsers)
-    .where(sql`lower(${adminUsers.email}) = ${normalizedEmail}`)
-    .limit(1);
+  const adminEmail = env.ADMIN_EMAIL;
+  const adminPassword = env.ADMIN_PASSWORD;
 
-  const user = rows[0];
-
-  // Always run a verification so a missing account and a wrong password take
-  // comparable time.
-  const stored =
-    user?.passwordHash ??
-    "scrypt$32768$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
-  const valid = await verifyPassword(password, stored);
-
-  if (!user || !valid) {
+  if (!adminEmail || !adminPassword) {
+    // A deployment without credentials must fail loudly in the log and
+    // silently in the browser — never hint at which half is missing, and
+    // never print either value.
+    console.error(
+      "Конфигурационна грешка: ADMIN_EMAIL и/или ADMIN_PASSWORD липсват в средата. " +
+        "Вход в административния панел е невъзможен, докато не бъдат зададени.",
+    );
     await recordAttempt(`${ip}|${normalizedEmail}`, false);
     return { ok: false, message: "Грешен имейл или парола." };
   }
+
+  // Both halves are always compared, so a wrong e-mail and a wrong password
+  // take the same time and reveal nothing about which one was wrong.
+  const emailMatches = safeEquals(
+    normalizedEmail,
+    adminEmail.trim().toLowerCase(),
+  );
+  const passwordMatches = safeEquals(password, adminPassword);
+
+  if (!emailMatches || !passwordMatches) {
+    await recordAttempt(`${ip}|${normalizedEmail}`, false);
+    return { ok: false, message: "Грешен имейл или парола." };
+  }
+
+  const user = await ensureAdminUser(adminEmail);
 
   await recordAttempt(`${ip}|${normalizedEmail}`, true);
   await createSession(user.id, headerList.get("user-agent"));
@@ -99,6 +113,30 @@ export async function login(
     .where(eq(adminUsers.id, user.id));
 
   return { ok: true };
+}
+
+/**
+ * The credentials live in the environment, but the row does not go away: a
+ * session, an order note and an audit entry all point at an admin id. So the
+ * account is materialised on first successful login and reused afterwards.
+ */
+async function ensureAdminUser(email: string): Promise<{ id: string }> {
+  const normalized = email.trim().toLowerCase();
+
+  const existing = await db
+    .select({ id: adminUsers.id })
+    .from(adminUsers)
+    .where(sql`lower(${adminUsers.email}) = ${normalized}`)
+    .limit(1);
+
+  if (existing[0]) return existing[0];
+
+  const [created] = await db
+    .insert(adminUsers)
+    .values({ email: email.trim(), name: env.ADMIN_NAME ?? "Администратор" })
+    .returning({ id: adminUsers.id });
+
+  return created;
 }
 
 async function recordAttempt(bucket: string, succeeded: boolean) {

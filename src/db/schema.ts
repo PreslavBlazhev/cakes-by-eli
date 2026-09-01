@@ -73,12 +73,17 @@ export const emailStatusEnum = pgEnum("email_status", [
  * Admin and authentication
  * ------------------------------------------------------------------ */
 
+/**
+ * The admin account. It carries no password: the credentials are the plain
+ * ADMIN_EMAIL and ADMIN_PASSWORD from the environment. The row exists because
+ * sessions, order notes and audit entries all point at an admin id, and it is
+ * created on the first successful login.
+ */
 export const adminUsers = pgTable(
   "admin_users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
-    passwordHash: text("password_hash").notNull(),
     name: text("name").notNull().default("Администратор"),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
