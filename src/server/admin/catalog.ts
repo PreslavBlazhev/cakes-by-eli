@@ -1,16 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { asc, eq, isNull, ne, sql } from "drizzle-orm";
+import { asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db/client";
 import { categories, productImages, products } from "@/db/schema";
-import { keyFromUrl, storage, storeUploadedImage } from "@/lib/storage";
+import { storeUploadedImage } from "@/lib/storage";
 import { uniqueSlug } from "@/lib/slug";
 import { parsePriceToCents } from "@/lib/format";
 import { sanitizeText } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
+import { knownImagePaths, removeImageFileIfUnused } from "./images";
 import { describeError, FAIL, OK } from "./types";
 import type { ActionResult } from "./types";
 
@@ -98,13 +99,10 @@ export async function saveCategory(formData: FormData): Promise<ActionResult> {
         })
         .where(eq(categories.id, values.id));
 
-      // Replacing an uploaded picture removes the old file; the bundled demo
-      // illustrations live in public/ and are left alone.
+      // Replacing an uploaded picture removes the old file, unless a product
+      // or the gallery is still showing it.
       const old = previous[0]?.imagePath;
-      if (imagePath && old) {
-        const key = keyFromUrl(old);
-        if (key) await storage().remove(key);
-      }
+      if (imagePath && old) await removeImageFileIfUnused(old);
 
       revalidatePublic();
       return OK("Категорията е запазена.", values.id);
@@ -336,24 +334,68 @@ export async function saveProduct(formData: FormData): Promise<ActionResult> {
       productId = row.id;
     }
 
-    // Images arrive on the same submission so the owner never has to save twice.
+    // Pictures arrive on the same submission so the owner never has to save
+    // twice: first the ones picked out of the site's existing images, then the
+    // freshly uploaded files, appended after whatever the product already has.
+    const existingImages = await db
+      .select({ path: productImages.path, sortOrder: productImages.sortOrder })
+      .from(productImages)
+      .where(eq(productImages.productId, productId));
+
+    const attached = new Set(existingImages.map((image) => image.path));
+    let nextOrder =
+      existingImages.reduce((max, image) => Math.max(max, image.sortOrder), -1) + 1;
+
+    const rejected: string[] = [];
+
+    const addImage = async (path: string) => {
+      if (attached.has(path)) return;
+      attached.add(path);
+      await db.insert(productImages).values({
+        productId,
+        path,
+        alt: sanitizeText(values.name),
+        sortOrder: nextOrder++,
+      });
+    };
+
+    const picked = formData
+      .getAll("libraryPaths")
+      .map((entry) => String(entry).trim())
+      .filter(Boolean);
+
+    if (picked.length > 0) {
+      // A path is only ever accepted if the site already knows it, so a
+      // hand-edited form cannot point a product at an arbitrary URL.
+      const known = await knownImagePaths();
+      let unknown = 0;
+      for (const path of picked) {
+        if (!known.has(path)) {
+          unknown += 1;
+          continue;
+        }
+        await addImage(path);
+      }
+      if (unknown > 0) {
+        rejected.push(
+          unknown === 1
+            ? "една избрана снимка вече не съществува"
+            : `${unknown} избрани снимки вече не съществуват`,
+        );
+      }
+    }
+
     const files = formData
       .getAll("images")
       .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-    const rejected: string[] = [];
     for (const file of files) {
       const result = await storeUploadedImage(file, "products");
       if (!result.ok) {
         rejected.push(`${result.originalName}: ${result.error}`);
         continue;
       }
-      await db.insert(productImages).values({
-        productId,
-        path: result.file.url,
-        alt: sanitizeText(values.name),
-        sortOrder: Date.now() % 100000,
-      });
+      await addImage(result.file.url);
     }
 
     revalidatePublic();
@@ -431,15 +473,67 @@ export async function deleteProductImage(
     if (!image) return FAIL("Снимката не е намерена.");
 
     await db.delete(productImages).where(eq(productImages.id, id.data));
-
-    const key = keyFromUrl(image.path);
-    if (key) await storage().remove(key);
+    await removeImageFileIfUnused(image.path);
 
     revalidatePublic();
     revalidatePath(`/admin/products/${image.productId}`);
     return OK("Снимката е премахната.");
   } catch (error) {
     console.error("deleteProductImage:", error);
+    return FAIL(describeError(error));
+  }
+}
+
+/**
+ * Picks the photo the site leads with. Everything reads the images in
+ * `sortOrder`, so the chosen one is moved to the front and the whole list is
+ * renumbered — gaps and duplicate positions cannot accumulate.
+ */
+export async function setProductCoverImage(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+
+    const id = idSchema.safeParse(formData.get("imageId"));
+    if (!id.success) return FAIL("Невалидна снимка.");
+
+    const rows = await db
+      .select({ id: productImages.id, productId: productImages.productId })
+      .from(productImages)
+      .where(eq(productImages.id, id.data))
+      .limit(1);
+
+    const image = rows[0];
+    if (!image) return FAIL("Снимката не е намерена.");
+
+    const all = await db
+      .select({ id: productImages.id })
+      .from(productImages)
+      .where(eq(productImages.productId, image.productId))
+      .orderBy(asc(productImages.sortOrder), asc(productImages.createdAt));
+
+    if (all[0]?.id === image.id) return OK("Снимката вече е основна.");
+
+    const ordered = [
+      image.id,
+      ...all.map((row) => row.id).filter((rowId) => rowId !== image.id),
+    ];
+
+    await db.transaction(async (tx) => {
+      for (const [position, imageId] of ordered.entries()) {
+        await tx
+          .update(productImages)
+          .set({ sortOrder: position })
+          .where(eq(productImages.id, imageId));
+      }
+    });
+
+    revalidatePublic();
+    revalidatePath(`/admin/products/${image.productId}`);
+    return OK("Снимката вече е основна.");
+  } catch (error) {
+    console.error("setProductCoverImage:", error);
     return FAIL(describeError(error));
   }
 }
@@ -495,20 +589,23 @@ export async function clearDemoContent(): Promise<ActionResult> {
       return OK("Няма демо продукти за премахване.");
     }
 
-    await db.transaction(async (tx) => {
-      for (const product of demoProducts) {
-        const images = await tx
-          .select({ path: productImages.path })
-          .from(productImages)
-          .where(eq(productImages.productId, product.id));
+    const paths = await db
+      .select({ path: productImages.path })
+      .from(productImages)
+      .where(
+        inArray(
+          productImages.productId,
+          demoProducts.map((product) => product.id),
+        ),
+      );
 
-        for (const image of images) {
-          const key = keyFromUrl(image.path);
-          if (key) await storage().remove(key);
-        }
-      }
-      await tx.delete(products).where(eq(products.isDemo, true));
-    });
+    await db.delete(products).where(eq(products.isDemo, true));
+
+    // Only now, with the rows gone, can we tell whether a file is orphaned:
+    // a demo photo the owner also pulled into the gallery must survive.
+    for (const { path } of new Map(paths.map((p) => [p.path, p])).values()) {
+      await removeImageFileIfUnused(path);
+    }
 
     revalidatePublic();
     return OK(`Премахнати са ${demoProducts.length} демо продукта.`);
@@ -559,8 +656,7 @@ export async function clearCategoryImage(
       .set({ imagePath: null, updatedAt: new Date() })
       .where(eq(categories.id, id.data));
 
-    const key = rows[0].imagePath ? keyFromUrl(rows[0].imagePath) : "";
-    if (key) await storage().remove(key);
+    if (rows[0].imagePath) await removeImageFileIfUnused(rows[0].imagePath);
 
     revalidatePublic();
     return OK("Снимката на категорията е премахната.");

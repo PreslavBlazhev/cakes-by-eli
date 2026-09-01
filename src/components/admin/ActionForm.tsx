@@ -234,3 +234,65 @@ export function QuickAction({
     </ActionForm>
   );
 }
+
+/**
+ * Runs an action from a single button without rendering a `<form>` around it,
+ * so it can sit inside another form — HTML forbids nesting them, and the
+ * image controls live inside the product form.
+ */
+export function InlineAction({
+  action,
+  hiddenFields,
+  label,
+  title,
+  className,
+  disabled,
+}: {
+  action: Action;
+  hiddenFields: Record<string, string>;
+  label: ReactNode;
+  title?: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    setBusy(true);
+    try {
+      const formData = new FormData();
+      for (const [key, value] of Object.entries(hiddenFields)) {
+        formData.set(key, value);
+      }
+      const result = await action(formData);
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      toast.error("Действието не беше изпълнено.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={run}
+      disabled={busy || disabled}
+      title={title}
+      className={cn(
+        "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[3px] border border-line bg-paper px-3 text-[0.78rem] font-semibold transition-colors hover:border-ink disabled:opacity-60",
+        className,
+      )}
+    >
+      {busy ? (
+        <Loader2 size={13} aria-hidden="true" className="animate-spin" />
+      ) : null}
+      {label}
+    </button>
+  );
+}

@@ -1,15 +1,17 @@
 import { PageHeader } from "@/components/admin/ui";
 import { ProductForm } from "../ProductForm";
 import { listAllCategories, listDessertTypes } from "@/server/queries/catalog";
+import { listImageLibrary } from "@/server/queries/gallery";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Нов продукт" };
 
 export default async function NewProductPage() {
-  const [categories, dessertTypes] = await Promise.all([
+  const [categories, dessertTypes, imageLibrary] = await Promise.all([
     listAllCategories(),
     listDessertTypes(false),
+    listImageLibrary(),
   ]);
 
   return (
@@ -22,6 +24,7 @@ export default async function NewProductPage() {
 
       <ProductForm
         images={[]}
+        imageLibrary={imageLibrary}
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
         dessertTypes={dessertTypes.map((d) => ({ id: d.id, name: d.name }))}
         values={{

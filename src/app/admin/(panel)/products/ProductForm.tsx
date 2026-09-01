@@ -1,19 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
 
-import {
-  ActionForm,
-  ConfirmAction,
-  SubmitButton,
-} from "@/components/admin/ActionForm";
+import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Card } from "@/components/admin/ui";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { ALLERGEN_OPTIONS, AVAILABILITY_LABELS } from "@/lib/labels";
-import { deleteProductImage, saveProduct } from "@/server/admin/catalog";
+import { saveProduct } from "@/server/admin/catalog";
+import type { LibraryImage } from "@/server/queries/gallery";
+import { ProductImages } from "./ProductImages";
 
 export type ProductFormValues = {
   id?: string;
@@ -52,21 +48,30 @@ export function ProductForm({
   categories,
   dessertTypes,
   images,
+  imageLibrary,
 }: {
   values: ProductFormValues;
   categories: { id: string; name: string }[];
   dessertTypes: { id: string; name: string }[];
   images: { id: string; path: string; alt: string }[];
+  imageLibrary: LibraryImage[];
 }) {
   const router = useRouter();
   const [shippingAllowed, setShippingAllowed] = useState(values.shippingAllowed);
+  // A saved picture is now a row rendered from the server, so the pending
+  // picks and the file input have to let go of it — otherwise the same photo
+  // would sit in the grid twice and a second Save would re-upload the files.
+  // Remounting is the whole reset; the pictures section owns no other state.
+  const [imagesKey, setImagesKey] = useState(0);
 
   return (
     <ActionForm
       action={saveProduct}
       className="space-y-4"
       onSuccess={(result) => {
-        if (!values.id && result.ok && result.id) {
+        if (!result.ok) return;
+        setImagesKey((key) => key + 1);
+        if (!values.id && result.id) {
           router.push(`/admin/products/${result.id}`);
         }
       }}
@@ -235,57 +240,11 @@ export function ProductForm({
             </div>
           </Card>
 
-          <Card
-            title="Снимки"
-            description="Първата снимка се използва като основна."
-          >
-            {images.length > 0 ? (
-              <ul className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {images.map((image) => (
-                  <li
-                    key={image.id}
-                    className="relative overflow-hidden rounded-[var(--radius-sm)] border border-line"
-                  >
-                    <span className="relative block aspect-[4/3] bg-surface-sunk">
-                      <Image
-                        src={image.path}
-                        alt={image.alt}
-                        fill
-                        sizes="200px"
-                        className="object-cover"
-                      />
-                    </span>
-                    <span className="absolute right-1.5 top-1.5">
-                      <ConfirmAction
-                        action={deleteProductImage}
-                        hiddenFields={{ imageId: image.id }}
-                        label={<Trash2 size={13} aria-hidden="true" />}
-                        title="Премахване на снимка"
-                        message="Снимката ще бъде изтрита окончателно."
-                        confirmLabel="Изтрий"
-                        className="size-9 min-h-0 px-0"
-                      />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            <Field
-              label="Добави снимки"
-              hint="JPG, PNG или WEBP. Качват се при запазване."
-              htmlFor="p-images"
-            >
-              <input
-                id="p-images"
-                name="images"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                className="block w-full text-[0.86rem] file:mr-3 file:rounded-[3px] file:border file:border-line file:bg-paper file:px-4 file:py-2 file:text-[0.84rem] file:font-semibold hover:file:border-ink"
-              />
-            </Field>
-          </Card>
+          <ProductImages
+            key={imagesKey}
+            images={images}
+            library={imageLibrary}
+          />
 
           <Card
             title="Състав и алергени"

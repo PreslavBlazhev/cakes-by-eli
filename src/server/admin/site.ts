@@ -12,9 +12,10 @@ import {
   siteSettings,
   workingHours,
 } from "@/db/schema";
-import { keyFromUrl, storage, storeUploadedImage } from "@/lib/storage";
+import { storeUploadedImage } from "@/lib/storage";
 import { sanitizeText, timeSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
+import { removeImageFileIfUnused } from "./images";
 import { describeError, FAIL, OK } from "./types";
 import type { ActionResult } from "./types";
 
@@ -538,8 +539,8 @@ export async function deleteGalleryItem(
 
     await db.delete(galleryItems).where(eq(galleryItems.id, id.data));
 
-    const key = keyFromUrl(item.path);
-    if (key) await storage().remove(key);
+    // The same file may illustrate a product; only an orphan is removed.
+    await removeImageFileIfUnused(item.path);
 
     revalidatePublic();
     return OK("Снимката е изтрита окончателно.");

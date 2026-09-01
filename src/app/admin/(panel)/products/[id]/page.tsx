@@ -10,6 +10,7 @@ import {
   listAllCategories,
   listDessertTypes,
 } from "@/server/queries/catalog";
+import { listImageLibrary } from "@/server/queries/gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +25,11 @@ export async function generateMetadata({ params }: Params) {
 export default async function EditProductPage({ params }: Params) {
   const { id } = await params;
 
-  const [product, categories, dessertTypes] = await Promise.all([
+  const [product, categories, dessertTypes, imageLibrary] = await Promise.all([
     getAdminProduct(id),
     listAllCategories(),
     listDessertTypes(false),
+    listImageLibrary(),
   ]);
 
   if (!product) notFound();
@@ -59,6 +61,7 @@ export default async function EditProductPage({ params }: Params) {
           path: image.path,
           alt: image.alt,
         }))}
+        imageLibrary={imageLibrary}
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
         dessertTypes={dessertTypes.map((d) => ({ id: d.id, name: d.name }))}
         values={{
