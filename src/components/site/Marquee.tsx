@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
+import { Container } from "@/components/ui/primitives";
+
 /**
  * A running strapline, set like the spine of a menu: small caps, wide
  * tracking, hairline rules.
@@ -89,40 +91,52 @@ export function Marquee({ items }: { items: string[] }) {
 
   return (
     <div className="border-y border-line bg-paper">
-      <div
-        ref={bandRef}
-        aria-hidden="true"
-        className="marquee-mask select-none overflow-hidden"
-        onPointerDown={() => setHeld(true)}
-        onPointerUp={() => setHeld(false)}
-        onPointerCancel={() => setHeld(false)}
-        onPointerLeave={() => setHeld(false)}
-      >
+      {/*
+        The rules run the full width of the page, but the words stay inside the
+        site's column like everything else — they used to sprawl across the
+        whole screen, which on a wide monitor left the strapline as the only
+        element ignoring the layout. Past the soft edges the band is simply
+        empty.
+      */}
+      <Container>
         <div
-          className="marquee-track flex w-max whitespace-nowrap py-3.5"
-          style={trackStyle}
+          ref={bandRef}
+          aria-hidden="true"
+          className="marquee-mask select-none overflow-hidden"
+          onPointerDown={() => setHeld(true)}
+          onPointerUp={() => setHeld(false)}
+          onPointerCancel={() => setHeld(false)}
+          onPointerLeave={() => setHeld(false)}
         >
-          {Array.from({ length: copies }, (_, copy) => (
-            <div
-              key={copy}
-              ref={copy === 0 ? copyRef : undefined}
-              className="flex"
-            >
-              {items.map((item, index) => (
-                <span
-                  key={`${item}-${index}`}
-                  className="flex items-center text-[0.68rem] uppercase tracking-[0.26em] text-ink-soft"
-                >
-                  {item}
-                  <span aria-hidden="true" className="mx-8 text-[0.5rem] text-gold">
-                    ◆
+          <div
+            className="marquee-track flex w-max whitespace-nowrap py-3.5"
+            style={trackStyle}
+          >
+            {Array.from({ length: copies }, (_, copy) => (
+              <div
+                key={copy}
+                ref={copy === 0 ? copyRef : undefined}
+                className="flex"
+              >
+                {items.map((item, index) => (
+                  <span
+                    key={`${item}-${index}`}
+                    className="flex items-center text-[0.68rem] uppercase tracking-[0.26em] text-ink-soft"
+                  >
+                    {item}
+                    <span
+                      aria-hidden="true"
+                      className="mx-8 text-[0.5rem] text-gold"
+                    >
+                      ◆
+                    </span>
                   </span>
-                </span>
-              ))}
-            </div>
-          ))}
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </Container>
     </div>
   );
 }

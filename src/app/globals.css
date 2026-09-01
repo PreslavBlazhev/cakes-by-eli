@@ -397,22 +397,23 @@
 
 /*
  * Symmetric soft edges, so words dissolve into the page instead of being
- * sliced by the frame — and the strip reads as centred rather than as
- * something running past a window.
+ * sliced where the column ends. The fade scales with the column so it stays
+ * a fringe on a phone instead of eating the whole strip.
  */
 .marquee-mask {
+  --cbe-marquee-fade: clamp(1.5rem, 7%, 5rem);
   -webkit-mask-image: linear-gradient(
     to right,
     transparent,
-    #000 5rem,
-    #000 calc(100% - 5rem),
+    #000 var(--cbe-marquee-fade),
+    #000 calc(100% - var(--cbe-marquee-fade)),
     transparent
   );
   mask-image: linear-gradient(
     to right,
     transparent,
-    #000 5rem,
-    #000 calc(100% - 5rem),
+    #000 var(--cbe-marquee-fade),
+    #000 calc(100% - var(--cbe-marquee-fade)),
     transparent
   );
 }
