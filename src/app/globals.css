@@ -378,15 +378,43 @@
  * Motion
  * ==================================================================== */
 
+/*
+ * One turn of the strapline is exactly one copy of the list, so the seam
+ * lands where the next copy begins and the loop is invisible. The component
+ * measures that width; the -50% fallback is correct for the two copies the
+ * server renders before the measurement arrives.
+ */
 @keyframes cbe-marquee {
   to {
-    transform: translateX(-50%);
+    transform: translateX(calc(-1 * var(--cbe-marquee-copy, 50%)));
   }
 }
 
 .marquee-track {
   animation: cbe-marquee 42s linear infinite;
   will-change: transform;
+}
+
+/*
+ * Symmetric soft edges, so words dissolve into the page instead of being
+ * sliced by the frame — and the strip reads as centred rather than as
+ * something running past a window.
+ */
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 5rem,
+    #000 calc(100% - 5rem),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 5rem,
+    #000 calc(100% - 5rem),
+    transparent
+  );
 }
 
 @keyframes cbe-fade-up {
