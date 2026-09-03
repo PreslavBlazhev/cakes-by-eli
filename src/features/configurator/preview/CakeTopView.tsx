@@ -13,7 +13,16 @@ import {
 } from "./model";
 import type { PreviewModel } from "./model";
 import { useSvgIds } from "./useSvgIds";
-import { buildTiers, contrastInk, heartPath, seeded, shade, VIEWBOX } from "./geometry";
+import {
+  buildTiers,
+  contrastInk,
+  heartPath,
+  outlineOffset,
+  seeded,
+  shade,
+  snap,
+  VIEWBOX,
+} from "./geometry";
 import type { CakeShape } from "./geometry";
 import { DecorItem, decorationGlyph, Sprinkles } from "./decorations";
 import {
@@ -44,7 +53,6 @@ export function CakeTopView({ model }: { model: PreviewModel }) {
   const uid = useSvgIds();
   const shape = (channelValue(model, "shape", "round") as CakeShape) || "round";
   const tierCount = Number(channelValue(model, "tiers", "1")) || 1;
-  const isHeart = shape === "heart";
 
   const frosting = channelColor(model, "frostingColor", NAMED_COLORS.ivory);
   const style = channelValue(model, "frostingStyle", "smooth");
@@ -59,7 +67,7 @@ export function CakeTopView({ model }: { model: PreviewModel }) {
   const placementMode = isPlacementMode(rawPlacement) ? rawPlacement : "crown";
   const density = isDensity(rawDensity) ? rawDensity : "medium";
 
-  const tiers = buildTiers(isHeart ? 1 : tierCount, shape);
+  const tiers = buildTiers(tierCount, shape);
   const widest = Math.max(...tiers.map((t) => t.width));
 
   const slots = buildPlacement({
@@ -188,6 +196,7 @@ export function CakeTopView({ model }: { model: PreviewModel }) {
               CENTRE.cx,
               CENTRE.cy,
               OUTER * (tiers[tiers.length - 1].width / widest),
+              shape,
             ).map((scallop, i) => (
               <circle
                 key={`scallop-${i}`}
@@ -249,7 +258,7 @@ export function CakeTopView({ model }: { model: PreviewModel }) {
         {slots.map((slot) => {
           const glyph = decorationGlyph(slot.token, frosting);
           if (!glyph) return null;
-          const pos = projectTop(slot, tiers, CENTRE, OUTER);
+          const pos = projectTop(slot, tiers, CENTRE, OUTER, shape);
 
           return (
             <DecorItem
@@ -258,7 +267,7 @@ export function CakeTopView({ model }: { model: PreviewModel }) {
               y={pos.y}
               scale={pos.scale * 1.08}
               // From above, items face outward from the centre.
-              rotate={(slot.angle * 180) / Math.PI}
+              rotate={180 - (slot.angle * 180) / Math.PI}
               delay={slot.order * 0.035}
             >
               {glyph}
@@ -375,8 +384,8 @@ function outlinePath(
     case "rect":
       return roundedRect(cx, cy, radius * 2.05, radius * 1.42, 10);
     case "heart":
-      // The elevation's heart outline is already a plan-shaped curve.
-      return heartPath(cx, cy + radius * 0.82, radius * 1.9);
+      // Seen from above the heart is simply itself, point towards the viewer.
+      return heartPath(cx, cy, radius * 2);
     default:
       return circlePath(cx, cy, radius);
   }
@@ -420,18 +429,20 @@ function dripScallops(
   cx: number,
   cy: number,
   radius: number,
+  shape: CakeShape,
 ): { x: number; y: number; r: number }[] {
   const out: { x: number; y: number; r: number }[] = [];
   const count = 14;
   for (let i = 0; i < count; i += 1) {
     const angle = (i / count) * Math.PI * 2;
     const r = 7 + seeded(i * 11) * 6;
-    const distance = radius - r * 0.35;
-    out.push({
-      x: cx + Math.sin(angle) * distance,
-      y: cy - Math.cos(angle) * distance,
-      r,
-    });
+    // The rim is wherever this shape's outline is at that bearing, so the
+    // chocolate pools round the point of a heart the way it would in life.
+    const offset = outlineOffset(shape, angle);
+    const rim = { x: offset.x * 2 * radius, y: offset.y * 2 * radius };
+    const reach = Math.sqrt(rim.x ** 2 + rim.y ** 2) || 1;
+    const pull = Math.max(0, reach - r * 0.35) / reach;
+    out.push({ x: snap(cx + rim.x * pull), y: snap(cy + rim.y * pull), r: snap(r) });
   }
   return out;
 }

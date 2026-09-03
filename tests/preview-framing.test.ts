@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  BASELINE,
-  boxFromEdges,
   buildTiers,
+  cakeContentBox,
   FRAME,
   fitTransform,
   VIEWBOX,
@@ -37,25 +36,13 @@ function applied(box: Box, transform: string): Box {
   };
 }
 
-/** Mirrors the box CakePreview computes for a given configuration. */
+/** The very box CakePreview draws into, for a given configuration. */
 function cakeBox(tierCount: number, shape: CakeShape, hasTopper: boolean): Box {
-  const isHeart = shape === "heart";
-  const tiers = buildTiers(isHeart ? 1 : tierCount, shape);
-  const topTier = tiers[tiers.length - 1];
-
-  const halfWidth = Math.max(
-    Math.max(...tiers.map((tier) => tier.width), isHeart ? 220 : 0) / 2 + 34,
-    134,
-  );
-
-  return boxFromEdges(
-    VIEWBOX.width / 2 - halfWidth,
-    isHeart
-      ? BASELINE - 210 * 0.86 - 26
-      : topTier.top - topTier.capRy - (hasTopper ? 74 : 16),
-    VIEWBOX.width / 2 + halfWidth,
-    BASELINE + 70,
-  );
+  return cakeContentBox({
+    tiers: buildTiers(tierCount, shape),
+    shape,
+    hasTopper,
+  });
 }
 
 describe("fitTransform", () => {

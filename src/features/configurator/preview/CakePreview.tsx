@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { Fragment } from "react";
 
 import {
   channelColor,
@@ -17,14 +16,17 @@ import { useSvgIds } from "./useSvgIds";
 import {
   arcPositions,
   BASELINE,
-  boxFromEdges,
   buildTiers,
+  cakeContentBox,
   contrastInk,
   dripPath,
   fitTransform,
-  heartPath,
+  heartCapPath,
+  heartFootPath,
+  heartFootPoints,
   seeded,
   shade,
+  standScale,
   tierBodyPath,
   VIEWBOX,
 } from "./geometry";
@@ -59,7 +61,6 @@ export function CakePreview({ model }: { model: PreviewModel }) {
   const uid = useSvgIds();
   const shape = (channelValue(model, "shape", "round") as CakeShape) || "round";
   const tierCount = Number(channelValue(model, "tiers", "1")) || 1;
-  const isHeart = shape === "heart";
 
   const frosting = channelColor(model, "frostingColor", NAMED_COLORS.ivory);
   const sponge = channelColor(model, "sponge", "#e6cfa8");
@@ -76,7 +77,7 @@ export function CakePreview({ model }: { model: PreviewModel }) {
   const topperText = channelText(model, "topperText");
   const message = channelText(model, "message");
 
-  const tiers = buildTiers(isHeart ? 1 : tierCount, shape);
+  const tiers = buildTiers(tierCount, shape);
   const slots = buildPlacement({
     specs: specsFrom({
       tokens: decorations,
@@ -100,18 +101,8 @@ export function CakePreview({ model }: { model: PreviewModel }) {
   // How much room the drawing actually needs changes with every choice, so the
   // composition is measured and then scaled to fill the frame.
   const hasTopper = topper !== "none" && topper !== "";
-  const halfWidth = Math.max(
-    Math.max(...tiers.map((tier) => tier.width), isHeart ? 220 : 0) / 2 + 34,
-    134,
-  );
-  const contentBox = boxFromEdges(
-    VIEWBOX.width / 2 - halfWidth,
-    isHeart
-      ? BASELINE - 210 * 0.86 - 26
-      : topTier.top - topTier.capRy - (hasTopper ? 74 : 16),
-    VIEWBOX.width / 2 + halfWidth,
-    BASELINE + 70,
-  );
+  const contentBox = cakeContentBox({ tiers, shape, hasTopper });
+  const tilt = standScale(shape);
 
   return (
     <svg
@@ -159,11 +150,11 @@ export function CakePreview({ model }: { model: PreviewModel }) {
         cx={VIEWBOX.width / 2}
         cy={BASELINE + 46}
         rx="128"
-        ry="20"
+        ry={20 * tilt}
         fill={`url(#cbe-shadow-${uid})`}
       />
 
-      {/* Cake stand */}
+      {/* Cake stand, seen from wherever the cake is seen from */}
       <g>
         <path
           d={`M ${VIEWBOX.width / 2 - 42} ${BASELINE + 6}
@@ -176,35 +167,35 @@ export function CakePreview({ model }: { model: PreviewModel }) {
           cx={VIEWBOX.width / 2}
           cy={BASELINE + 46}
           rx="62"
-          ry="11"
+          ry={11 * tilt}
           fill="#c19a68"
         />
         <ellipse
           cx={VIEWBOX.width / 2}
           cy={BASELINE + 43}
           rx="62"
-          ry="11"
+          ry={11 * tilt}
           fill="#e3c99e"
         />
         <ellipse
           cx={VIEWBOX.width / 2}
           cy={BASELINE + 6}
           rx="132"
-          ry="19"
+          ry={19 * tilt}
           fill="#c8a276"
         />
         <ellipse
           cx={VIEWBOX.width / 2}
           cy={BASELINE + 1}
           rx="132"
-          ry="19"
+          ry={19 * tilt}
           fill="#f0dcc0"
         />
         <ellipse
           cx={VIEWBOX.width / 2}
           cy={BASELINE + 1}
           rx="132"
-          ry="19"
+          ry={19 * tilt}
           fill="none"
           stroke="#d3b28a"
           strokeWidth="1"
@@ -212,34 +203,24 @@ export function CakePreview({ model }: { model: PreviewModel }) {
       </g>
 
       {/* Cake */}
-      {isHeart ? (
-        <HeartCake
-          fill={bodyFill}
-          sponge={sponge}
-          isNaked={isNaked}
-          decorations={decorations}
-          accent={frosting}
-          uid={uid}
-        />
-      ) : (
-        <AnimatePresence initial={false}>
-          {tiers.map((tier, index) => (
-            <Tier
-              key={`tier-${index}`}
-              tier={tier}
-              index={index}
-              shape={shape}
-              sponge={sponge}
-              filling={filling}
-              isNaked={isNaked}
-              isTextured={isTextured}
-              hasDrip={hasDrip && index === tiers.length - 1}
-              ribbon={index < tiers.length - 1 ? ribbon : "none"}
-              uid={uid}
-            />
-          ))}
-        </AnimatePresence>
-      )}
+      <AnimatePresence initial={false}>
+        {tiers.map((tier, index) => (
+          <Tier
+            key={`tier-${index}`}
+            tier={tier}
+            index={index}
+            shape={shape}
+            bodyFill={bodyFill}
+            sponge={sponge}
+            filling={filling}
+            isNaked={isNaked}
+            isTextured={isTextured}
+            hasDrip={hasDrip && index === tiers.length - 1}
+            ribbon={index < tiers.length - 1 ? ribbon : "none"}
+            uid={uid}
+          />
+        ))}
+      </AnimatePresence>
 
       {/* Message piped on the front of the largest tier */}
       <AnimatePresence>
@@ -276,7 +257,7 @@ export function CakePreview({ model }: { model: PreviewModel }) {
         {slots.filter(isVisibleFromSide).map((slot) => {
           const glyph = decorationGlyph(slot.token, frosting);
           if (!glyph) return null;
-          const pos = projectSide(slot, tiers);
+          const pos = projectSide(slot, tiers, shape);
 
           return (
             <DecorItem
@@ -385,6 +366,7 @@ function Tier({
   tier,
   index,
   shape,
+  bodyFill,
   sponge,
   filling,
   isNaked,
@@ -396,6 +378,7 @@ function Tier({
   tier: TierGeometry;
   index: number;
   shape: CakeShape;
+  bodyFill: string;
   sponge: string;
   filling: string;
   isNaked: boolean;
@@ -405,6 +388,7 @@ function Tier({
   uid: string;
 }) {
   const half = tier.width / 2;
+  const isHeart = shape === "heart";
 
   return (
     <motion.g
@@ -413,6 +397,11 @@ function Tier({
       exit={{ opacity: 0, y: -18 }}
       transition={{ ...layerTransition, delay: index * 0.06 }}
     >
+      {/* Anything drawn across the wall has to stop at the wall's own edge. */}
+      <clipPath id={`cbe-wall-${uid}-${index}`}>
+        <path d={tierBodyPath(tier, shape)} />
+      </clipPath>
+
       {/* Sponge layers show through on naked cakes */}
       {isNaked ? (
         <>
@@ -426,6 +415,7 @@ function Tier({
               height={tier.height * 0.11}
               fill={filling}
               opacity="0.95"
+              clipPath={`url(#cbe-wall-${uid}-${index})`}
             />
           ))}
           <motion.path
@@ -446,12 +436,15 @@ function Tier({
 
       {/* Piped texture */}
       {isTextured ? (
-        <g opacity="0.24">
+        <g opacity="0.24" clipPath={`url(#cbe-wall-${uid}-${index})`}>
           {Array.from({
-            length: Math.max(3, Math.floor(tier.height / 17)),
+            length: Math.max(
+              3,
+              Math.floor((tier.height + (isHeart ? tier.capRy : 0)) / 17),
+            ),
           }).map((_, i) => {
             const y = tier.top + 12 + i * 17;
-            if (y > tier.bottom - 6) return null;
+            if (y > tier.bottom - 6 + (isHeart ? tier.capRy : 0)) return null;
             return (
               <path
                 key={i}
@@ -473,23 +466,55 @@ function Tier({
         opacity="0.35"
       />
 
-      {/* Top cap */}
-      <motion.ellipse
-        cx={tier.cx}
-        cy={tier.top}
-        rx={half}
-        ry={tier.capRy}
-        fill={`url(#cbe-cake-cap-${uid})`}
-        transition={colorTransition}
-      />
-      <ellipse
-        cx={tier.cx - half * 0.22}
-        cy={tier.top - tier.capRy * 0.18}
-        rx={half * 0.5}
-        ry={tier.capRy * 0.44}
-        fill="#ffffff"
-        opacity="0.18"
-      />
+      {/* Top cap — the shape's own plan, seen from the shape's own camera */}
+      {isHeart ? (
+        <>
+          <clipPath id={`cbe-cap-${uid}-${index}`}>
+            <path d={heartCapPath(tier)} />
+          </clipPath>
+          <motion.path
+            d={heartCapPath(tier)}
+            fill={`url(#cbe-cake-cap-${uid})`}
+            transition={colorTransition}
+          />
+          <ellipse
+            cx={tier.cx - half * 0.3}
+            cy={tier.top - tier.capRy * 0.34}
+            rx={half * 0.42}
+            ry={tier.capRy * 0.4}
+            fill="#ffffff"
+            opacity="0.18"
+            clipPath={`url(#cbe-cap-${uid}-${index})`}
+          />
+          {/* Without this the top surface and the wall melt into one shape. */}
+          <path
+            d={heartCapPath(tier)}
+            fill="none"
+            stroke={shade(bodyFill, -34)}
+            strokeOpacity="0.45"
+            strokeWidth="1.2"
+          />
+        </>
+      ) : (
+        <>
+          <motion.ellipse
+            cx={tier.cx}
+            cy={tier.top}
+            rx={half}
+            ry={tier.capRy}
+            fill={`url(#cbe-cake-cap-${uid})`}
+            transition={colorTransition}
+          />
+          <ellipse
+            cx={tier.cx - half * 0.22}
+            cy={tier.top - tier.capRy * 0.18}
+            rx={half * 0.5}
+            ry={tier.capRy * 0.44}
+            fill="#ffffff"
+            opacity="0.18"
+          />
+        </>
+      )}
 
       {/* Drip over the rim */}
       <AnimatePresence>
@@ -501,39 +526,65 @@ function Tier({
             exit={{ opacity: 0, scaleY: 0.2 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             style={{ transformBox: "fill-box", transformOrigin: "50% 0%" }}
-            d={dripPath(tier)}
+            d={dripPath(tier, shape)}
             fill={`url(#cbe-drip-${uid})`}
           />
         ) : null}
       </AnimatePresence>
 
-      {/* Accent between tiers */}
+      {/* Accent between tiers, following the foot rather than cutting across it */}
       <AnimatePresence>
         {ribbon === "ribbon" ? (
-          <motion.rect
-            key="ribbon"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.82 }}
-            exit={{ opacity: 0 }}
-            x={tier.cx - half}
-            y={tier.bottom - 26}
-            width={tier.width}
-            height="13"
-            fill="#8f4e5d"
-          />
+          isHeart ? (
+            <motion.path
+              key="ribbon"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.82 }}
+              exit={{ opacity: 0 }}
+              d={heartFootPath(tier, 19.5)}
+              fill="none"
+              stroke="#8f4e5d"
+              strokeWidth="13"
+            />
+          ) : (
+            <motion.rect
+              key="ribbon"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.82 }}
+              exit={{ opacity: 0 }}
+              x={tier.cx - half}
+              y={tier.bottom - 26}
+              width={tier.width}
+              height="13"
+              fill="#8f4e5d"
+            />
+          )
         ) : null}
         {ribbon === "gold-line" ? (
-          <motion.rect
-            key="gold-line"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.9 }}
-            exit={{ opacity: 0 }}
-            x={tier.cx - half}
-            y={tier.bottom - 22}
-            width={tier.width}
-            height="4"
-            fill="#caa779"
-          />
+          isHeart ? (
+            <motion.path
+              key="gold-line"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.9 }}
+              exit={{ opacity: 0 }}
+              d={heartFootPath(tier, 20)}
+              fill="none"
+              stroke="#caa779"
+              strokeWidth="4"
+            />
+          ) : (
+            <motion.rect
+              key="gold-line"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.9 }}
+              exit={{ opacity: 0 }}
+              x={tier.cx - half}
+              y={tier.bottom - 22}
+              width={tier.width}
+              height="4"
+              fill="#caa779"
+            />
+          )
         ) : null}
         {ribbon === "pearls" ? (
           <motion.g
@@ -542,11 +593,11 @@ function Tier({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {Array.from({ length: Math.floor(tier.width / 15) }).map((_, i) => (
+            {pearlPositions(tier, shape, 15, 18).map((point, i) => (
               <circle
                 key={i}
-                cx={tier.cx - half + 8 + i * 15}
-                cy={tier.bottom - 18}
+                cx={point.x}
+                cy={point.y}
                 r="4"
                 fill="#f3e6d2"
                 stroke="#dcc7a8"
@@ -559,11 +610,11 @@ function Tier({
 
       {/* Base piping */}
       <g>
-        {Array.from({ length: Math.floor(tier.width / 16) }).map((_, i) => (
+        {pearlPositions(tier, shape, 16, 4).map((point, i) => (
           <circle
             key={i}
-            cx={tier.cx - half + 8 + i * 16}
-            cy={tier.bottom - 4}
+            cx={point.x}
+            cy={point.y}
             r="6"
             fill="#ffffff"
             opacity="0.32"
@@ -574,61 +625,26 @@ function Tier({
   );
 }
 
-function HeartCake({
-  fill,
-  sponge,
-  isNaked,
-  decorations,
-  accent,
-  uid,
-}: {
-  fill: string;
-  sponge: string;
-  isNaked: boolean;
-  decorations: string[];
-  accent: string;
-  uid: string;
-}) {
-  const cx = VIEWBOX.width / 2;
-  const width = 210;
-  const path = heartPath(cx, BASELINE, width);
+/**
+ * Where the beads of a pearl trim or a run of base piping sit. On a straight
+ * foot that is a line of them; on a heart it is the curve of the foot itself,
+ * so the trim wraps the point instead of cutting the cake in half.
+ */
+function pearlPositions(
+  tier: TierGeometry,
+  shape: CakeShape,
+  spacing: number,
+  inset: number,
+) {
+  const count = Math.floor(tier.width / spacing);
 
-  return (
-    <motion.g
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={layerTransition}
-      style={{ transformBox: "fill-box", transformOrigin: "50% 100%" }}
-    >
-      <path d={path} fill={isNaked ? sponge : `url(#cbe-cake-body-${uid})`} />
-      <path d={path} fill={`url(#cbe-sheen-${uid})`} opacity="0.3" />
-      <path
-        d={path}
-        fill="none"
-        stroke={shade(fill, -40)}
-        strokeWidth="1.2"
-        opacity="0.5"
-      />
-      <AnimatePresence initial={false}>
-        {decorations.slice(0, 3).map((token, i) => {
-          const glyph = decorationGlyph(token, accent);
-          if (!glyph) return null;
-          return (
-            <DecorItem
-              key={token}
-              x={cx + (i - 1) * 46}
-              y={BASELINE - width * 0.52 + (i % 2) * 14}
-              scale={1}
-              rotate={(seeded(i * 3) - 0.5) * 24}
-              delay={i * 0.06}
-            >
-              {glyph}
-            </DecorItem>
-          );
-        })}
-      </AnimatePresence>
-    </motion.g>
-  );
+  if (shape === "heart") return heartFootPoints(tier, count, inset);
+
+  const half = tier.width / 2;
+  return Array.from({ length: count }, (_, i) => ({
+    x: tier.cx - half + spacing / 2 + i * spacing,
+    y: tier.bottom - inset,
+  }));
 }
 
 /* ------------------------------------------------------------------ */

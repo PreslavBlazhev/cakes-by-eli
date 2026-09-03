@@ -1,4 +1,5 @@
-import type { TierGeometry } from "./geometry";
+import { outlineOffset, planAspect, snap } from "./geometry";
+import type { CakeShape, TierGeometry } from "./geometry";
 
 /**
  * Where every decoration sits — resolved once, drawn from two viewpoints.
@@ -325,24 +326,31 @@ function ledgeRadius(slot: PlacementSlot, tiers: TierGeometry[]): number {
 export function projectSide(
   slot: PlacementSlot,
   tiers: TierGeometry[],
+  shape: CakeShape = "round",
 ): Projected {
   const tier = tiers[Math.min(slot.tier, tiers.length - 1)];
   const depth = Math.cos(slot.angle);
   const radius = ledgeRadius(slot, tiers);
-  const halfWidth = (tier.width / 2) * radius;
-  const x = tier.cx + Math.sin(slot.angle) * halfWidth;
+  const offset = outlineOffset(shape, slot.angle);
+  const x = tier.cx + offset.x * tier.width * radius;
+
+  // The cap's depth is measured against the shape's own plan, so a shape that
+  // is not as deep as it is wide still lands its ring on its own rim.
+  const reach = (2 * tier.capRy) / planAspect(shape);
 
   const y =
     slot.surface === "side"
-      ? // Clinging to the wall: sit at a stable height on the tier face.
-        tier.top + tier.capRy + (tier.height - tier.capRy) * 0.45
-      : tier.top + depth * tier.capRy * radius;
+      ? // Clinging to the wall: the same distance below the rim all the way
+        // round, which means following the rim rather than a flat line — on a
+        // heart the rim swings by half the height of the tier.
+        tier.top + offset.y * reach + (tier.height - tier.capRy) * 0.45
+      : tier.top + offset.y * reach * radius;
 
   return {
-    x,
-    y,
+    x: snap(x),
+    y: snap(y),
     // Items at the front are nearer the viewer, so slightly larger.
-    scale: slot.scale * (0.88 + ((depth + 1) / 2) * 0.24),
+    scale: snap(slot.scale * (0.88 + ((depth + 1) / 2) * 0.24)),
     depth,
   };
 }
@@ -365,19 +373,23 @@ export function projectTop(
   centre: { cx: number; cy: number },
   /** Picture radius of the widest tier. */
   outerRadius: number,
+  shape: CakeShape = "round",
 ): Projected {
   const tier = tiers[Math.min(slot.tier, tiers.length - 1)];
   const widest = Math.max(...tiers.map((t) => t.width));
   const tierRadius = outerRadius * (tier.width / widest);
 
   // Wall-mounted items sit exactly on their tier's outline from above.
-  const r =
-    slot.surface === "side" ? tierRadius : tierRadius * ledgeRadius(slot, tiers);
+  const r = slot.surface === "side" ? 1 : ledgeRadius(slot, tiers);
+  const offset = outlineOffset(shape, slot.angle);
 
   return {
-    x: centre.cx + Math.sin(slot.angle) * r,
-    y: centre.cy - Math.cos(slot.angle) * r,
-    scale: slot.scale,
+    x: snap(centre.cx + offset.x * 2 * tierRadius * r),
+    // The plan is drawn with the viewer at the bottom of the picture, which
+    // is where the elevation looks at the cake from — so the slot facing the
+    // viewer is the one nearest the "Отпред" marker, not the one opposite it.
+    y: snap(centre.cy + offset.y * 2 * tierRadius * r),
+    scale: snap(slot.scale),
     depth: Math.cos(slot.angle),
   };
 }

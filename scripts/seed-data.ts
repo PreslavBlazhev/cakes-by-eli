@@ -530,14 +530,6 @@ export const DESSERT_TYPES: SeedDessertType[] = [
         whenGroupKey: "topper",
         whenOptionKeys: ["name", "number", "custom"],
       },
-      {
-        targetType: "OPTION",
-        targetKey: "3",
-        targetGroupKey: "tiers",
-        mode: "HIDE_WHEN",
-        whenGroupKey: "shape",
-        whenOptionKeys: ["heart"],
-      },
     ],
   },
 
