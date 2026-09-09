@@ -31,17 +31,47 @@ declare global {
   var __cbePglite: PGlite | undefined;
 }
 
+/**
+ * Opens the production pool and attaches its one error listener.
+ *
+ * `pg.Pool` is an EventEmitter that emits `'error'` when an *idle* client dies
+ * — a database restart, an expired TCP idle, a network blip. An EventEmitter
+ * with no listener for `'error'` throws, which takes the whole Node process
+ * down; on Render that looks indistinguishable from an out-of-memory kill in
+ * the Events list. The listener is attached exactly here, in the branch that
+ * constructs the pool, so a reused pool never accumulates a second one.
+ */
+function createPool(connectionString: string): Pool {
+  const pool = new Pool({
+    connectionString,
+    max: 10,
+    // Fail a request that cannot get a connection instead of hanging on it
+    // forever while holding whatever it has already allocated.
+    connectionTimeoutMillis: 10_000,
+    // Explicit rather than relying on the driver default.
+    idleTimeoutMillis: 30_000,
+    ssl: connectionString.includes("sslmode=require")
+      ? { rejectUnauthorized: false }
+      : undefined,
+  });
+
+  pool.on("error", (error: Error) => {
+    // Message only. The connection string, the credentials inside it and the
+    // failing query never reach the log.
+    console.error(
+      JSON.stringify({
+        tag: "PG_POOL_ERROR",
+        message: error.message,
+      }),
+    );
+  });
+
+  return pool;
+}
+
 function createDatabase(): Database {
   if (env.DATABASE_URL) {
-    const pool =
-      globalThis.__cbePool ??
-      new Pool({
-        connectionString: env.DATABASE_URL,
-        max: 10,
-        ssl: env.DATABASE_URL.includes("sslmode=require")
-          ? { rejectUnauthorized: false }
-          : undefined,
-      });
+    const pool = globalThis.__cbePool ?? createPool(env.DATABASE_URL);
     globalThis.__cbePool = pool;
     return drizzleNode(pool, { schema });
   }

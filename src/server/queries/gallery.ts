@@ -2,6 +2,13 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { categories, galleryItems, productImages, products } from "@/db/schema";
+import {
+  MAX_GALLERY_ROWS,
+  MAX_LIBRARY_ROWS,
+  warnIfTruncated,
+} from "./ceiling";
+
+export { MAX_GALLERY_ROWS, MAX_LIBRARY_ROWS };
 
 export type GalleryItem = typeof galleryItems.$inferSelect & {
   categoryName: string | null;
@@ -26,7 +33,10 @@ export async function listGallery(options?: {
     .where(and(...conditions))
     .orderBy(asc(galleryItems.sortOrder), desc(galleryItems.createdAt));
 
-  const rows = options?.limit ? await query.limit(options.limit) : await query;
+  const rows = await query.limit(
+    Math.min(options?.limit ?? MAX_GALLERY_ROWS, MAX_GALLERY_ROWS),
+  );
+  if (!options?.limit) warnIfTruncated("listGallery", rows, MAX_GALLERY_ROWS);
 
   return rows.map((r) => ({
     ...r.item,
@@ -44,7 +54,9 @@ export async function listAdminGallery(): Promise<GalleryItem[]> {
     })
     .from(galleryItems)
     .leftJoin(categories, eq(galleryItems.categoryId, categories.id))
-    .orderBy(asc(galleryItems.sortOrder), desc(galleryItems.createdAt));
+    .orderBy(asc(galleryItems.sortOrder), desc(galleryItems.createdAt))
+    .limit(MAX_GALLERY_ROWS);
+  warnIfTruncated("listAdminGallery", rows, MAX_GALLERY_ROWS);
 
   return rows.map((r) => ({
     ...r.item,
@@ -73,13 +85,15 @@ export async function listImageLibrary(): Promise<LibraryImage[]> {
       .select({ path: galleryItems.path, caption: galleryItems.caption })
       .from(galleryItems)
       .where(isNull(galleryItems.archivedAt))
-      .orderBy(asc(galleryItems.sortOrder), desc(galleryItems.createdAt)),
+      .orderBy(asc(galleryItems.sortOrder), desc(galleryItems.createdAt))
+      .limit(MAX_LIBRARY_ROWS),
     db
       .select({ path: productImages.path, name: products.name })
       .from(productImages)
       .innerJoin(products, eq(productImages.productId, products.id))
       .where(isNull(products.archivedAt))
-      .orderBy(asc(products.name), asc(productImages.sortOrder)),
+      .orderBy(asc(products.name), asc(productImages.sortOrder))
+      .limit(MAX_LIBRARY_ROWS),
   ]);
 
   const byPath = new Map<string, LibraryImage>();
@@ -98,5 +112,9 @@ export async function listImageLibrary(): Promise<LibraryImage[]> {
     byPath.set(row.path, { path: row.path, label: row.name, source: "product" });
   }
 
-  return [...byPath.values()];
+  // Each query above is capped separately, so their union can be twice the
+  // ceiling — the final slice is what actually makes the promise hold.
+  const images = [...byPath.values()].slice(0, MAX_LIBRARY_ROWS);
+  warnIfTruncated("listImageLibrary", images, MAX_LIBRARY_ROWS);
+  return images;
 }

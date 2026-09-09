@@ -20,6 +20,13 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Params) {
+  // Authenticated before the read, not after. Next runs `generateMetadata` and
+  // the page in parallel, so without this check an anonymous request to
+  // /admin/print/<any-uuid> still executed the six order queries before the
+  // page's own guard turned the response into a redirect.
+  const admin = await currentAdmin();
+  if (!admin) return { title: "Поръчка", robots: { index: false, follow: false } };
+
   const { id } = await params;
   const data = await getOrder(id);
   return {

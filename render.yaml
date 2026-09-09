@@ -31,9 +31,18 @@ services:
     # Render запазва предишната версия вместо да пусне кух сайт.
     preDeployCommand: npm run db:migrate && npm run db:seed && npm run db:verify
 
-    startCommand: npm start
+    # The V8 old-space ceiling is set here rather than in `envVars`, because a
+    # global NODE_OPTIONS would also apply to `next build` — which needs far
+    # more than 350 MB and would fail. Node sizes its heap from the *host*'s
+    # RAM, not the container's: measured 4 144 MB on a 15.7 GB machine while
+    # this service is capped at 512. Without a ceiling V8 never feels pressure
+    # and the cgroup killer arrives first, with no stack trace; with one, V8
+    # collects in time and genuine heap exhaustion is reported as such.
+    startCommand: NODE_OPTIONS=--max-old-space-size=350 npm start
 
-    healthCheckPath: /contacts
+    # Inert liveness probe. `/contacts` is force-dynamic and cost ~7 queries
+    # plus a full render on every check, ~1 700 times a day.
+    healthCheckPath: /api/health
 
     # Качените от админа снимки трябва да преживеят рестарт и нов деплой.
     # Само те живеят тук. Демо снимките (public/demo) са в Git и идват заедно с
@@ -58,6 +67,21 @@ services:
 
       - key: SESSION_TTL_HOURS
         value: "12"
+
+      # Memory telemetry from src/instrumentation.ts — one JSON line a minute,
+      # counters only, no personal data. Keep it on for the first week of
+      # observation, then remove this entry once the trend is understood.
+      - key: MEMLOG
+        value: "1"
+
+      # Upload limits. 3 × 3 MB plus multipart overhead stays inside the 12 MB
+      # serverActions body limit in next.config.ts; src/lib/env.ts refuses to
+      # boot if that stops being true. The order form reads the same numbers,
+      # so the interface and the server cannot disagree.
+      - key: UPLOAD_MAX_FILE_MB
+        value: "3"
+      - key: UPLOAD_MAX_FILES
+        value: "3"
 
       # --- Попълва се ръчно в Render Dashboard ---------------------------
 

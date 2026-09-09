@@ -61,15 +61,21 @@ export async function sendNewOrderAdminEmail(
   const to = env.OWNER_NOTIFICATION_EMAIL;
 
   if (!to) {
-    await db.insert(orderEmails).values({
-      orderId,
-      kind: "OWNER_NEW_ORDER",
-      toAddress: "(не е зададен)",
-      subject: message.subject,
-      status: "SKIPPED",
-      error:
-        "OWNER_NOTIFICATION_EMAIL не е конфигуриран — известието не беше изпратено.",
-    });
+    try {
+      await db.insert(orderEmails).values({
+        orderId,
+        kind: "OWNER_NEW_ORDER",
+        toAddress: "(не е зададен)",
+        subject: message.subject,
+        status: "SKIPPED",
+        error:
+          "OWNER_NOTIFICATION_EMAIL не е конфигуриран — известието не беше изпратено.",
+      });
+    } catch (error) {
+      // Same rule as in `deliver`: recording the attempt must never take down
+      // the caller. The order is already committed by this point.
+      console.error("Неуспешен запис на имейл лог:", error);
+    }
     return {
       delivered: false,
       error: "OWNER_NOTIFICATION_EMAIL не е конфигуриран.",

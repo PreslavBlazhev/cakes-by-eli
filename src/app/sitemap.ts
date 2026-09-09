@@ -3,7 +3,15 @@ import type { MetadataRoute } from "next";
 import { env } from "@/lib/env";
 import { listPublicCategories, listPublicProducts } from "@/server/queries/catalog";
 
-export const dynamic = "force-dynamic";
+/**
+ * Regenerated hourly rather than on every request.
+ *
+ * The sitemap lists the whole catalogue, so it was the most expensive public
+ * page and the one crawlers ask for most often — and it was rebuilt from the
+ * database every single time. An hour is far shorter than any crawler's revisit
+ * interval, so a newly published product is still picked up promptly.
+ */
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = env.APP_URL;

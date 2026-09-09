@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, asc, eq, gte, isNull, lte, or } from "drizzle-orm";
 
 import { db } from "@/db/client";
@@ -41,12 +42,22 @@ const FALLBACK: SiteSettings = {
   updatedAt: new Date(),
 };
 
-export async function getSettings(): Promise<SiteSettings> {
+/**
+ * Request-scoped memoisation.
+ *
+ * The site shell, the page and `generateMetadata` each need the settings, so a
+ * single visit asked for them three or four times. `cache()` from React
+ * deduplicates within one request and forgets everything at the end of it —
+ * unlike a module-level cache, it never serves one visitor's read to another
+ * and never keeps a row alive between requests.
+ */
+export const getSettings = cache(async (): Promise<SiteSettings> => {
   const rows = await db.select().from(siteSettings).where(eq(siteSettings.id, 1));
   return rows[0] ?? FALLBACK;
-}
+});
 
-export async function getWorkingHours(): Promise<WorkingHourRow[]> {
+/** Request-scoped, like {@link getSettings} — the shell and the page both need it. */
+export const getWorkingHours = cache(async (): Promise<WorkingHourRow[]> => {
   const rows = await db
     .select()
     .from(workingHours)
@@ -60,12 +71,15 @@ export async function getWorkingHours(): Promise<WorkingHourRow[]> {
     opensAt: r.opensAt,
     closesAt: r.closesAt,
   }));
-}
+});
 
-/** Exceptions from today onwards — the public site never shows past ones. */
-export async function getUpcomingExceptions(
+/**
+ * Exceptions from today onwards — the public site never shows past ones.
+ * Request-scoped, like {@link getSettings}; memoised per `days` argument.
+ */
+export const getUpcomingExceptions = cache(async (
   days = 120,
-): Promise<ScheduleExceptionRow[]> {
+): Promise<ScheduleExceptionRow[]> => {
   const today = todayInSofia();
   const rows = await db
     .select()
@@ -75,7 +89,7 @@ export async function getUpcomingExceptions(
     .limit(days);
 
   return rows.map(toExceptionRow);
-}
+});
 
 export async function getAllExceptions(): Promise<
   (ScheduleExceptionRow & { id: string })[]
@@ -102,8 +116,11 @@ function toExceptionRow(
 
 export type Announcement = typeof announcements.$inferSelect;
 
-/** The single banner currently in force, if any. */
-export async function getActiveAnnouncement(): Promise<Announcement | null> {
+/**
+ * The single banner currently in force, if any.
+ * Request-scoped, like {@link getSettings}.
+ */
+export const getActiveAnnouncement = cache(async (): Promise<Announcement | null> => {
   const now = new Date();
   const rows = await db
     .select()
@@ -119,7 +136,7 @@ export async function getActiveAnnouncement(): Promise<Announcement | null> {
     .limit(1);
 
   return rows[0] ?? null;
-}
+});
 
 export async function listAnnouncements(): Promise<Announcement[]> {
   return db.select().from(announcements).orderBy(asc(announcements.createdAt));

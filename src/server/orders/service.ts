@@ -21,6 +21,7 @@ import {
   snapshotTitle,
 } from "@/features/orders/snapshot";
 import type { OrderSnapshot } from "@/features/orders/snapshot";
+import { runSafely, scheduleAfterResponse } from "@/lib/after-response";
 import { env } from "@/lib/env";
 import {
   customerOrderEmail,
@@ -323,7 +324,7 @@ export async function createOrder(
 
   // Deliberately after the commit: the order is durable regardless of the
   // e-mail provider's health, and every attempt is logged against the order.
-  await scheduleAfterResponse(
+  await scheduleAfterResponse(() =>
     notify({
       orderId: created.id,
       orderNumber: created.orderNumber,
@@ -396,22 +397,36 @@ async function notify(input: {
       `Поръчката се счита за потвърдена след потвърждение от ${settings.businessName}.`,
   };
 
-  const owner = ownerOrderEmail(data);
-  await sendNewOrderAdminEmail(input.orderId, {
-    subject: owner.subject,
-    html: owner.html,
-    text: owner.text,
-    replyTo: payload.customerEmail,
+  // The two notifications are independent: whatever goes wrong with the
+  // owner's copy must not stop the customer's, and vice versa. Each send
+  // records its own row in `order_emails`, so a failure is visible in the
+  // admin panel rather than merely logged.
+  await settle("OWNER_NEW_ORDER", async () => {
+    const owner = ownerOrderEmail(data);
+    await sendNewOrderAdminEmail(input.orderId, {
+      subject: owner.subject,
+      html: owner.html,
+      text: owner.text,
+      replyTo: payload.customerEmail,
+    });
   });
 
-  const customer = customerOrderEmail(data);
-  await sendCustomerOrderReceivedEmail(input.orderId, {
-    to: payload.customerEmail,
-    subject: customer.subject,
-    html: customer.html,
-    text: customer.text,
-    replyTo: replyToAddress(),
+  await settle("CUSTOMER_RECEIVED", async () => {
+    const customer = customerOrderEmail(data);
+    await sendCustomerOrderReceivedEmail(input.orderId, {
+      to: payload.customerEmail,
+      subject: customer.subject,
+      html: customer.html,
+      text: customer.text,
+      replyTo: replyToAddress(),
+    });
   });
+}
+
+/** Runs one notification, keeping its failure to itself. */
+async function settle(kind: string, send: () => Promise<void>): Promise<void> {
+  // No addresses and no message bodies — only which notification failed.
+  await runSafely(send, "ORDER_EMAIL_FAILED", { kind });
 }
 
 /** Human sentence for the delivery method, used in confirmations. */
@@ -439,18 +454,4 @@ function snapshotFingerprint(snapshot: OrderSnapshot): string {
     .join("|");
 
   return `${snapshot.kind}:${subject}:${snapshot.quantity}:${lines}`;
-}
-
-/**
- * Hands work to Next's post-response hook so the customer is not kept waiting
- * for an e-mail provider, while the hosting platform still keeps the function
- * alive until it finishes. Outside a request (scripts, tests) it simply awaits.
- */
-async function scheduleAfterResponse(work: Promise<void>): Promise<void> {
-  try {
-    const { after } = await import("next/server");
-    after(work);
-  } catch {
-    await work;
-  }
 }

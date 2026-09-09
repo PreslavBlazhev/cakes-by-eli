@@ -378,3 +378,49 @@ describe("e-mail logging", () => {
     }
   });
 });
+
+describe("attachment limits", () => {
+  it("refuses more attachments than the order form advertises", async () => {
+    const { submitOrder } = await import("@/server/orders/actions");
+    const { env } = await import("@/lib/env");
+
+    const form = new FormData();
+    form.set("payload", JSON.stringify(catalogInput().payload));
+    for (let i = 0; i <= env.UPLOAD_MAX_FILES; i += 1) {
+      form.append("files", new File([new Uint8Array(8)], `${i}.jpg`));
+    }
+
+    const state = await submitOrder({ status: "idle" }, form);
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") return;
+    // The same number `AttachmentPicker` shows the customer — see
+    // tests/upload-limits.test.ts for the rest of that chain.
+    expect(state.message).toContain(
+      `най-много ${env.UPLOAD_MAX_FILES} снимки`,
+    );
+  });
+
+  it("writes nothing and creates no order when an attachment is rejected", async () => {
+    const { submitOrder } = await import("@/server/orders/actions");
+
+    const before = await db.select({ id: schema.orders.id }).from(schema.orders);
+
+    const form = new FormData();
+    form.set("payload", JSON.stringify(catalogInput().payload));
+    // Valid JPEG magic bytes, garbage after them: accepted by the sniffer,
+    // refused by the decoder.
+    const corrupt = new Uint8Array(64);
+    corrupt.set([0xff, 0xd8, 0xff, 0xe0]);
+    form.append("files", new File([corrupt], "счупена.jpg"));
+
+    const state = await submitOrder({ status: "idle" }, form);
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") return;
+    expect(state.message).toContain("не може да бъде разчетен");
+
+    const after = await db.select({ id: schema.orders.id }).from(schema.orders);
+    expect(after).toHaveLength(before.length);
+  });
+});

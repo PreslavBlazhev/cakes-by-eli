@@ -82,12 +82,41 @@ const schema = z.object({
   ECONT_SENDER_OTHER: optionalString,
   ECONT_SENDER_OFFICE_CODE: optionalString,
 
-  /** Upload limits (server-enforced). */
-  UPLOAD_MAX_FILE_MB: z.coerce.number().min(1).max(25).default(6),
-  UPLOAD_MAX_FILES: z.coerce.number().int().min(1).max(20).default(5),
+  /**
+   * Upload limits (server-enforced, and the single source of truth for the
+   * numbers the order form shows). Both must stay within
+   * SERVER_ACTION_BODY_LIMIT_MB — see the refinement below.
+   */
+  UPLOAD_MAX_FILE_MB: z.coerce.number().min(1).max(10).default(3),
+  UPLOAD_MAX_FILES: z.coerce.number().int().min(1).max(10).default(3),
 });
 
+/**
+ * Must equal `experimental.serverActions.bodySizeLimit` in `next.config.ts`.
+ *
+ * Next buffers the whole multipart body before a server action runs, so the
+ * upload limits above have to fit inside it with room for the field data and
+ * the multipart framing. `tests/upload-limits.test.ts` asserts that the two
+ * files agree, so this constant cannot drift unnoticed.
+ */
+export const SERVER_ACTION_BODY_LIMIT_MB = 12;
+
+/** Headroom left for form fields and multipart boundaries. */
+const BODY_LIMIT_MARGIN_MB = 2;
+
 export type Env = z.infer<typeof schema>;
+
+/**
+ * The largest multipart body the upload limits can produce, in MB.
+ *
+ * Exported so the limits can be checked without booting the whole module.
+ */
+export function worstCaseUploadBodyMb(
+  maxFiles: number,
+  maxFileMb: number,
+): number {
+  return maxFiles * maxFileMb + BODY_LIMIT_MARGIN_MB;
+}
 
 function load(): Env {
   const parsed = schema.safeParse(process.env);
@@ -97,6 +126,21 @@ function load(): Env {
       .join("\n");
     throw new Error(`Невалидна конфигурация на средата:\n${details}`);
   }
+
+  const { UPLOAD_MAX_FILES, UPLOAD_MAX_FILE_MB } = parsed.data;
+  const worstCase = worstCaseUploadBodyMb(UPLOAD_MAX_FILES, UPLOAD_MAX_FILE_MB);
+
+  if (worstCase > SERVER_ACTION_BODY_LIMIT_MB) {
+    // Caught at boot rather than as an opaque "body exceeded" error the first
+    // time a customer attaches a full set of photos.
+    throw new Error(
+      "Невалидна конфигурация на средата:\n" +
+        `  - UPLOAD_MAX_FILES × UPLOAD_MAX_FILE_MB (${UPLOAD_MAX_FILES} × ` +
+        `${UPLOAD_MAX_FILE_MB} MB = ${worstCase} MB с резерв) надхвърля ` +
+        `serverActions.bodySizeLimit (${SERVER_ACTION_BODY_LIMIT_MB} MB) от next.config.ts.`,
+    );
+  }
+
   return parsed.data;
 }
 

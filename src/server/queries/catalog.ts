@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { cache } from "react";
+import { and, asc, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
@@ -8,6 +9,9 @@ import {
   products,
 } from "@/db/schema";
 import { ORDERABLE_AVAILABILITY } from "@/lib/labels";
+import { MAX_PRODUCT_ROWS, warnIfTruncated } from "./ceiling";
+
+export { MAX_PRODUCT_ROWS };
 
 export type Category = typeof categories.$inferSelect;
 export type Product = typeof products.$inferSelect;
@@ -34,8 +38,11 @@ export async function listPublicCategories(): Promise<
 
   if (rows.length === 0) return [];
 
+  // Counted in SQL. This used to select every visible product id and tally them
+  // in JavaScript, which meant the whole catalogue crossed the wire on every
+  // request to the home page and the menu just to render a number per card.
   const counts = await db
-    .select({ categoryId: products.categoryId, id: products.id })
+    .select({ categoryId: products.categoryId, total: count() })
     .from(products)
     .where(
       and(
@@ -46,12 +53,11 @@ export async function listPublicCategories(): Promise<
           rows.map((r) => r.id),
         ),
       ),
-    );
+    )
+    .groupBy(products.categoryId);
 
   const byCategory = new Map<string, number>();
-  for (const row of counts) {
-    byCategory.set(row.categoryId, (byCategory.get(row.categoryId) ?? 0) + 1);
-  }
+  for (const row of counts) byCategory.set(row.categoryId, row.total);
 
   return rows.map((c) => ({ ...c, productCount: byCategory.get(c.id) ?? 0 }));
 }
@@ -63,16 +69,20 @@ export async function listAllCategories(): Promise<Category[]> {
     .orderBy(asc(categories.sortOrder), asc(categories.name));
 }
 
-export async function getCategoryBySlug(
-  slug: string,
-): Promise<Category | null> {
-  const rows = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.slug, slug))
-    .limit(1);
-  return rows[0] ?? null;
-}
+/**
+ * Request-scoped: `generateMetadata` and the page itself both resolve the same
+ * slug, so without this every category view ran the lookup twice.
+ */
+export const getCategoryBySlug = cache(
+  async (slug: string): Promise<Category | null> => {
+    const rows = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.slug, slug))
+      .limit(1);
+    return rows[0] ?? null;
+  },
+);
 
 /* ------------------------------------------------------------------ *
  * Products
@@ -140,28 +150,36 @@ export async function listPublicProducts(options?: {
     .where(and(...conditions))
     .orderBy(asc(products.sortOrder), asc(products.name));
 
-  const rows = options?.limit ? await query.limit(options.limit) : await query;
+  const rows = await query.limit(
+    Math.min(options?.limit ?? MAX_PRODUCT_ROWS, MAX_PRODUCT_ROWS),
+  );
+  if (!options?.limit) warnIfTruncated("listPublicProducts", rows, MAX_PRODUCT_ROWS);
   return attachMedia(rows);
 }
 
-export async function getPublicProductBySlug(
-  slug: string,
-): Promise<ProductWithMedia | null> {
-  const rows = await db
-    .select()
-    .from(products)
-    .where(
-      and(
-        eq(products.slug, slug),
-        isNull(products.archivedAt),
-        ne(products.availability, "HIDDEN"),
-      ),
-    )
-    .limit(1);
+/**
+ * Request-scoped, like {@link getCategoryBySlug}. Worth more here: each call
+ * also runs the two `attachMedia` queries, so deduplicating saves three
+ * round trips per product view.
+ */
+export const getPublicProductBySlug = cache(
+  async (slug: string): Promise<ProductWithMedia | null> => {
+    const rows = await db
+      .select()
+      .from(products)
+      .where(
+        and(
+          eq(products.slug, slug),
+          isNull(products.archivedAt),
+          ne(products.availability, "HIDDEN"),
+        ),
+      )
+      .limit(1);
 
-  const [withMedia] = await attachMedia(rows);
-  return withMedia ?? null;
-}
+    const [withMedia] = await attachMedia(rows);
+    return withMedia ?? null;
+  },
+);
 
 /**
  * Resolves a product id that arrived from an untrusted query string.
@@ -192,7 +210,9 @@ export async function listAdminProducts(): Promise<ProductWithMedia[]> {
   const rows = await db
     .select()
     .from(products)
-    .orderBy(asc(products.sortOrder), asc(products.name));
+    .orderBy(asc(products.sortOrder), asc(products.name))
+    .limit(MAX_PRODUCT_ROWS);
+  warnIfTruncated("listAdminProducts", rows, MAX_PRODUCT_ROWS);
   return attachMedia(rows);
 }
 

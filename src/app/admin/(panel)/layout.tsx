@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 import { AdminChrome } from "@/components/admin/AdminChrome";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -23,10 +23,22 @@ export default async function PanelLayout({
   const admin = await currentAdmin();
   if (!admin) redirect("/admin/login");
 
-  void pruneSessions();
+  // `pruneSessions` swallows its own failures, but the `.catch()` is what makes
+  // that a property of this call site rather than a promise anyone could break
+  // later: an unhandled rejection here would take the whole process down.
+  void pruneSessions().catch((error: unknown) => {
+    console.error(
+      JSON.stringify({
+        tag: "SESSION_PRUNE_FAILED",
+        message: error instanceof Error ? error.message : "неизвестна грешка",
+      }),
+    );
+  });
 
+  // Counted in SQL. This used to select every NEW order just to read
+  // `.length` for the sidebar badge, on every admin page view.
   const newOrders = await db
-    .select({ id: orders.id })
+    .select({ total: count() })
     .from(orders)
     .where(eq(orders.status, "NEW"));
 
@@ -35,7 +47,7 @@ export default async function PanelLayout({
       <AdminChrome />
       <AdminShell
         adminName={admin.name}
-        newOrderCount={newOrders.length}
+        newOrderCount={newOrders[0]?.total ?? 0}
         configWarnings={configurationWarnings()}
       >
         {children}

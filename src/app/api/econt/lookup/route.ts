@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { EcontError, econtIsConfigured } from "@/lib/econt/client";
 import {
+  ECONT_BUSY,
+  isKnownCityId,
   searchCities,
   searchOffices,
   searchStreets,
@@ -15,6 +17,11 @@ export const dynamic = "force-dynamic";
  *
  * Read-only and served from an in-memory cache, but still throttled so the
  * endpoint cannot be used to hammer Econt on a cold cache.
+ *
+ * `cityId` arrives from a query string, so it is checked against Econt's own
+ * list of settlements before it is allowed to reach the streets endpoint. That
+ * check is what keeps a made-up id out of the per-city street cache — without
+ * it, every integer someone cared to send became a permanent entry.
  */
 export async function GET(request: Request) {
   const limited = rateLimit(clientKey(request.headers, "econt-lookup"), {
@@ -57,6 +64,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ items: await searchCities(query) });
     }
 
+    // Any id that reached this point is well-formed; now check that it is real.
+    // Done once, before either branch that accepts one, so nothing downstream
+    // has to repeat it.
+    if (cityId !== undefined && !(await isKnownCityId(cityId))) {
+      return NextResponse.json(
+        { error: "Населеното място не е намерено в номенклатурата на Еконт." },
+        { status: 400 },
+      );
+    }
+
     if (kind === "offices") {
       return NextResponse.json({ items: await searchOffices(query, cityId) });
     }
@@ -74,6 +91,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Неизвестна заявка." }, { status: 400 });
   } catch (error) {
     if (error instanceof EcontError) {
+      if (error.type === ECONT_BUSY) {
+        return NextResponse.json({ error: error.message }, { status: 503 });
+      }
+      // Type and details only — never the query, the client address or the
+      // credentials.
       console.error("Econt lookup failed:", error.type, error.details);
       return NextResponse.json(
         { error: "Списъкът от Еконт не може да бъде зареден в момента." },

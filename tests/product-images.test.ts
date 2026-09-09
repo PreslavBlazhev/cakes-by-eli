@@ -230,6 +230,80 @@ describe("deleting the file under a picture", () => {
   });
 });
 
+describe("category product counts", () => {
+  /**
+   * The count is now a SQL `COUNT(*)` grouped by category. It used to select
+   * every visible product id and tally them in JavaScript, so the whole
+   * catalogue crossed the wire on every home-page and menu request just to
+   * render a number on each card.
+   */
+  it("counts only products a visitor may see", async () => {
+    const { listPublicCategories } = await import("@/server/queries/catalog");
+
+    const [other] = await db
+      .insert(schema.categories)
+      .values({ slug: "ekleri", name: "Еклери" })
+      .returning({ id: schema.categories.id });
+
+    await db.insert(schema.products).values([
+      { categoryId: other.id, slug: "vidim-1", name: "Видим 1" },
+      { categoryId: other.id, slug: "vidim-2", name: "Видим 2" },
+      // Neither of these may be counted.
+      {
+        categoryId: other.id,
+        slug: "skrit",
+        name: "Скрит",
+        availability: "HIDDEN",
+      },
+      {
+        categoryId: other.id,
+        slug: "arhiviran",
+        name: "Архивиран",
+        archivedAt: new Date(),
+      },
+    ]);
+
+    const categories = await listPublicCategories();
+    const eclairs = categories.find((c) => c.slug === "ekleri");
+
+    expect(eclairs?.productCount).toBe(2);
+
+    // A category with nothing visible reports zero rather than being dropped.
+    const [empty] = await db
+      .insert(schema.categories)
+      .values({ slug: "makaroni", name: "Макарони" })
+      .returning({ id: schema.categories.id });
+    void empty;
+
+    const refreshed = await listPublicCategories();
+    expect(refreshed.find((c) => c.slug === "makaroni")?.productCount).toBe(0);
+  });
+
+  it("never returns an unbounded list", async () => {
+    const catalogQueries = await import("@/server/queries/catalog");
+    const galleryQueries = await import("@/server/queries/gallery");
+
+    // Safety ceilings, not pagination: unreachable at this scale, but they mean
+    // no query here can ever become an unbounded SELECT.
+    expect(catalogQueries.MAX_PRODUCT_ROWS).toBeGreaterThan(0);
+    expect(galleryQueries.MAX_GALLERY_ROWS).toBeGreaterThan(0);
+    expect(galleryQueries.MAX_LIBRARY_ROWS).toBeGreaterThan(0);
+
+    expect(
+      (await catalogQueries.listAdminProducts()).length,
+    ).toBeLessThanOrEqual(catalogQueries.MAX_PRODUCT_ROWS);
+    expect(
+      (await catalogQueries.listPublicProducts()).length,
+    ).toBeLessThanOrEqual(catalogQueries.MAX_PRODUCT_ROWS);
+    expect(
+      (await galleryQueries.listAdminGallery()).length,
+    ).toBeLessThanOrEqual(galleryQueries.MAX_GALLERY_ROWS);
+    expect(
+      (await galleryQueries.listImageLibrary()).length,
+    ).toBeLessThanOrEqual(galleryQueries.MAX_LIBRARY_ROWS);
+  });
+});
+
 function formDataWith(fields: Record<string, string>) {
   const formData = new FormData();
   for (const [key, value] of Object.entries(fields)) formData.set(key, value);
