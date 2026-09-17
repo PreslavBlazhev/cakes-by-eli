@@ -19,28 +19,11 @@ import {
   getUpcomingExceptions,
   getWorkingHours,
 } from "@/server/queries/settings";
+import { cn } from "@/lib/cn";
+import { homeList, resolveHomeContent } from "@/lib/home-content";
 import { todayStatusSentence } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
-
-const STEPS = [
-  {
-    title: "Избор",
-    body: "Разгледайте менюто или отворете конфигуратора и съставете десерта стъпка по стъпка.",
-  },
-  {
-    title: "Детайли",
-    body: "Повод, дата, брой порции, вкусове и всичко важно за поръчката.",
-  },
-  {
-    title: "Потвърждение",
-    body: "Свързваме се с вас, уточняваме възможностите и потвърждаваме поръчката.",
-  },
-  {
-    title: "Готово",
-    body: "Вземане на място в Плевен или доставка с Еконт, където е приложимо.",
-  },
-];
 
 export default async function HomePage() {
   const [settings, categories, featured, gallery, hours, exceptions] =
@@ -54,6 +37,25 @@ export default async function HomePage() {
     ]);
 
   const status = todayStatusSentence(hours, exceptions);
+
+  // Owner-editable copy — Админ → Текстове на сайта.
+  const copy = resolveHomeContent(settings.homeContent);
+  const steps = [
+    [copy.step1Title, copy.step1Text],
+    [copy.step2Title, copy.step2Text],
+    [copy.step3Title, copy.step3Text],
+    [copy.step4Title, copy.step4Text],
+  ].filter(([title, body]) => title || body);
+  const credentials = [
+    [copy.credential1Title, copy.credential1Text],
+    [copy.credential2Title, copy.credential2Text],
+    [
+      copy.credential3Title || settings.city,
+      copy.credential3Text || settings.addressLine || "локална сладкарска работа",
+    ],
+  ].filter(([term, description]) => term || description);
+  const marquee = homeList(copy.marqueeItems);
+  const builderPoints = homeList(copy.builderPoints);
   const heroCategories = categories.slice(0, 4);
   const mapsHost = settings.mapsUrl;
 
@@ -92,24 +94,24 @@ export default async function HomePage() {
               <p className="lede mt-7 max-w-[46ch]">{settings.heroSubtitle}</p>
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <ButtonLink href="/order?mode=custom" variant="rose" size="lg">
-                  Създай свой десерт
-                  <ArrowRight size={16} aria-hidden="true" />
-                </ButtonLink>
-                <ButtonLink href="/menu" variant="outline" size="lg">
-                  Разгледай менюто
-                </ButtonLink>
+                {copy.heroPrimaryCta ? (
+                  <ButtonLink href="/order?mode=custom" variant="rose" size="lg">
+                    {copy.heroPrimaryCta}
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </ButtonLink>
+                ) : null}
+                {copy.heroSecondaryCta ? (
+                  <ButtonLink href="/menu" variant="outline" size="lg">
+                    {copy.heroSecondaryCta}
+                  </ButtonLink>
+                ) : null}
               </div>
 
               {/* Credentials, set as a printed colophon rather than as
                   three identical stat boxes. */}
               <dl className="mt-12 flex flex-wrap gap-x-10 gap-y-6 border-t border-line pt-7">
-                {[
-                  ["По поръчка", "индивидуален дизайн"],
-                  ["Ръчна изработка", "внимание към детайла"],
-                  [settings.city, settings.addressLine || "локална сладкарска работа"],
-                ].map(([term, description]) => (
-                  <div key={term} className="min-w-[128px]">
+                {credentials.map(([term, description], index) => (
+                  <div key={index} className="min-w-[128px]">
                     <dt className="font-[family-name:var(--font-display)] text-[1.24rem] leading-tight">
                       {term}
                     </dt>
@@ -127,38 +129,27 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      <Marquee
-        items={[
-          "Бутикови торти",
-          "Еклери",
-          "Макарони",
-          "Къпкейкове",
-          "Декорирани бисквити",
-          "Сладки барове",
-        ]}
-      />
+      {marquee.length > 0 ? <Marquee items={marquee} /> : null}
 
       {/* ====================================================== Signature */}
       {featured.length > 0 ? (
         <Section tone="cream">
           <Container>
             <SectionHeading
-              eyebrow="Избрано"
+              eyebrow={copy.featuredEyebrow || undefined}
               title={
-                <>
-                  Малки детайли.
-                  <br />
-                  <em className="display-italic">Големи поводи.</em>
-                </>
+                <Headline title={copy.featuredTitle} accent={copy.featuredAccent} />
               }
-              intro="Няколко от текущите предложения. Всяко може да бъде адаптирано към вашия повод — вкус, размер и декорация се уточняват заедно."
+              intro={copy.featuredIntro || undefined}
               action={
-                <Link
-                  href="/menu"
-                  className="link-underline text-[0.76rem] font-bold uppercase tracking-[0.18em] text-rose-dark"
-                >
-                  Цялото меню
-                </Link>
+                copy.featuredLink ? (
+                  <Link
+                    href="/menu"
+                    className="link-underline text-[0.76rem] font-bold uppercase tracking-[0.18em] text-rose-dark"
+                  >
+                    {copy.featuredLink}
+                  </Link>
+                ) : undefined
               }
             />
 
@@ -201,29 +192,31 @@ export default async function HomePage() {
         <Container>
           <div className="grid gap-12 lg:grid-cols-[1fr_0.92fr] lg:items-center lg:gap-20">
             <div>
-              <div className="flex items-center gap-4">
-                <span aria-hidden="true" className="h-px w-10 bg-gold" />
-                <Label tone="light">Само тук</Label>
-              </div>
+              {copy.builderEyebrow ? (
+                <div className="flex items-center gap-4">
+                  <span aria-hidden="true" className="h-px w-10 bg-gold" />
+                  <Label tone="light">{copy.builderEyebrow}</Label>
+                </div>
+              ) : null}
 
               <h2 className="display-2 mt-6 text-paper">
-                Създай
-                <br />
-                <em className="display-italic text-[#e7c9a8]">своя десерт.</em>
+                <Headline
+                  title={copy.builderTitle}
+                  accent={copy.builderAccent}
+                  accentClassName="text-[#e7c9a8]"
+                />
               </h2>
 
-              <p className="mt-7 max-w-[46ch] text-[1.04rem] leading-relaxed text-[#d6c6bb]">
-                Изберете вид, вкус, размер, цветове и декорация — и вижте как
-                десертът се променя пред вас, преди да поръчате.
-              </p>
+              {copy.builderText ? (
+                <p className="mt-7 max-w-[46ch] whitespace-pre-line text-[1.04rem] leading-relaxed text-[#d6c6bb]">
+                  {copy.builderText}
+                </p>
+              ) : null}
 
+              {builderPoints.length > 0 ? (
               <ol className="mt-10 divide-y divide-[#4a3730] border-y border-[#4a3730]">
-                {[
-                  "Формата, етажите и покритието се сменят на живо.",
-                  "Цветовете на крема и декорацията се виждат веднага.",
-                  "Обобщението се обновява с всеки избор.",
-                ].map((item, index) => (
-                  <li key={item} className="flex items-baseline gap-5 py-4">
+                {builderPoints.map((item, index) => (
+                  <li key={index} className="flex items-baseline gap-5 py-4">
                     <span
                       aria-hidden="true"
                       className="numeral flex-none text-[0.75rem] text-[#a08b7f]"
@@ -234,18 +227,21 @@ export default async function HomePage() {
                   </li>
                 ))}
               </ol>
+              ) : null}
 
-              <div className="mt-10">
-                <ButtonLink
-                  href="/order?mode=custom"
-                  variant="ghost"
-                  size="lg"
-                  className="border-paper/25 bg-transparent text-paper hover:border-paper hover:bg-paper hover:text-ink"
-                >
-                  Отвори конфигуратора
-                  <ArrowRight size={16} aria-hidden="true" />
-                </ButtonLink>
-              </div>
+              {copy.builderCta ? (
+                <div className="mt-10">
+                  <ButtonLink
+                    href="/order?mode=custom"
+                    variant="ghost"
+                    size="lg"
+                    className="border-paper/25 bg-transparent text-paper hover:border-paper hover:bg-paper hover:text-ink"
+                  >
+                    {copy.builderCta}
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </ButtonLink>
+                </div>
+              ) : null}
             </div>
 
             <ConfiguratorTeaser />
@@ -257,15 +253,9 @@ export default async function HomePage() {
       <Section tone="cream">
         <Container>
           <SectionHeading
-            eyebrow="Менюто"
-            title={
-              <>
-                Изберете вида
-                <br />
-                <em className="display-italic">десерт.</em>
-              </>
-            }
-            intro="Всяка категория води към конкретните предложения. Оттам можете да поръчате директно или да отворите конфигуратора."
+            eyebrow={copy.menuEyebrow || undefined}
+            title={<Headline title={copy.menuTitle} accent={copy.menuAccent} />}
+            intro={copy.menuIntro || undefined}
           />
 
           <div className="mt-14 grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-4">
@@ -297,22 +287,20 @@ export default async function HomePage() {
         <Section tone="stone">
           <Container>
             <SectionHeading
-              eyebrow="Работата"
+              eyebrow={copy.galleryEyebrow || undefined}
               title={
-                <>
-                  Изработено
-                  <br />
-                  <em className="display-italic">специално за вас.</em>
-                </>
+                <Headline title={copy.galleryTitle} accent={copy.galleryAccent} />
               }
-              intro={`Подбрани проекти от работата на ${settings.businessName}.`}
+              intro={copy.galleryIntro || undefined}
               action={
-                <Link
-                  href="/gallery"
-                  className="link-underline text-[0.76rem] font-bold uppercase tracking-[0.18em] text-rose-dark"
-                >
-                  Цялата галерия
-                </Link>
+                copy.galleryLink ? (
+                  <Link
+                    href="/gallery"
+                    className="link-underline text-[0.76rem] font-bold uppercase tracking-[0.18em] text-rose-dark"
+                  >
+                    {copy.galleryLink}
+                  </Link>
+                ) : undefined
               }
             />
 
@@ -375,12 +363,14 @@ export default async function HomePage() {
                   </blockquote>
                 ) : null}
 
-                <div className="mt-11">
-                  <ButtonLink href="/order" variant="outline">
-                    Разкажи ми за повода
-                    <ArrowRight size={15} aria-hidden="true" />
-                  </ButtonLink>
-                </div>
+                {copy.aboutCta ? (
+                  <div className="mt-11">
+                    <ButtonLink href="/order" variant="outline">
+                      {copy.aboutCta}
+                      <ArrowRight size={15} aria-hidden="true" />
+                    </ButtonLink>
+                  </div>
+                ) : null}
               </div>
             </div>
           </Container>
@@ -392,17 +382,15 @@ export default async function HomePage() {
         <Container>
           <div className="grid gap-10 lg:grid-cols-[0.34fr_0.66fr] lg:gap-16">
             <div className="border-t border-line pt-7">
-              <Label>Как става</Label>
-              <h2 className="display-3 mt-4">
-                От идея до
-                <br />
-                готов десерт.
+              {copy.processEyebrow ? <Label>{copy.processEyebrow}</Label> : null}
+              <h2 className="display-3 mt-4 whitespace-pre-line">
+                {copy.processTitle}
               </h2>
             </div>
 
             <ol className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
-              {STEPS.map((step, index) => (
-                <li key={step.title} className="border-t border-line pt-6">
+              {steps.map(([title, body], index) => (
+                <li key={index} className="border-t border-line pt-6">
                   <div className="flex items-baseline gap-4">
                     <span
                       aria-hidden="true"
@@ -411,9 +399,9 @@ export default async function HomePage() {
                       {String(index + 1).padStart(2, "0")}
                     </span>
                     <div>
-                      <h3 className="display-4">{step.title}</h3>
-                      <p className="mt-2 text-[0.88rem] leading-relaxed text-ink-soft">
-                        {step.body}
+                      <h3 className="display-4">{title}</h3>
+                      <p className="mt-2 whitespace-pre-line text-[0.88rem] leading-relaxed text-ink-soft">
+                        {body}
                       </p>
                     </div>
                   </div>
@@ -430,15 +418,17 @@ export default async function HomePage() {
           <div className="grid overflow-hidden rounded-[var(--radius-lg)] border border-line lg:grid-cols-2">
             <div className="flex flex-col justify-between gap-10 bg-cocoa p-9 text-paper sm:p-12">
               <div>
-                <Label tone="light">Поръчки и въпроси</Label>
-                <h2 className="display-3 mt-4 text-paper">
-                  Най-бързо е
-                  <br />
-                  по телефона.
+                {copy.contactEyebrow ? (
+                  <Label tone="light">{copy.contactEyebrow}</Label>
+                ) : null}
+                <h2 className="display-3 mt-4 whitespace-pre-line text-paper">
+                  {copy.contactTitle}
                 </h2>
-                <p className="mt-4 max-w-[38ch] text-[0.94rem] leading-relaxed text-[#c9b8ad]">
-                  Свободна дата и основните детайли се уточняват за минута.
-                </p>
+                {copy.contactText ? (
+                  <p className="mt-4 max-w-[38ch] whitespace-pre-line text-[0.94rem] leading-relaxed text-[#c9b8ad]">
+                    {copy.contactText}
+                  </p>
+                ) : null}
               </div>
 
               {settings.phone ? (
@@ -462,7 +452,7 @@ export default async function HomePage() {
 
             <div className="flex flex-col justify-between gap-10 bg-paper p-9 sm:p-12">
               <div>
-                <Label>Ателието</Label>
+                {copy.studioEyebrow ? <Label>{copy.studioEyebrow}</Label> : null}
                 <h2 className="display-3 mt-4">{settings.businessName}</h2>
                 {settings.addressLine ? (
                   <p className="mt-5 flex items-start gap-3 text-[0.96rem] leading-relaxed text-ink-soft">
@@ -481,12 +471,14 @@ export default async function HomePage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <ButtonLink href="/order" variant="rose">
-                  Направи поръчка
-                </ButtonLink>
-                {mapsHost ? (
+                {copy.studioOrderCta ? (
+                  <ButtonLink href="/order" variant="rose">
+                    {copy.studioOrderCta}
+                  </ButtonLink>
+                ) : null}
+                {mapsHost && copy.studioMapCta ? (
                   <ExternalButtonLink href={mapsHost} variant="outline">
-                    Виж на картата
+                    {copy.studioMapCta}
                   </ExternalButtonLink>
                 ) : null}
               </div>
@@ -499,6 +491,30 @@ export default async function HomePage() {
 }
 
 /* ------------------------------------------------------------------ */
+
+/**
+ * A section title as the owner typed it: line breaks kept, and the accent —
+ * when there is one — on its own line in the italic display face.
+ */
+function Headline({
+  title,
+  accent,
+  accentClassName,
+}: {
+  title: string;
+  accent: string;
+  accentClassName?: string;
+}) {
+  return (
+    <>
+      {title ? <span className="whitespace-pre-line">{title}</span> : null}
+      {title && accent ? <br /> : null}
+      {accent ? (
+        <em className={cn("display-italic", accentClassName)}>{accent}</em>
+      ) : null}
+    </>
+  );
+}
 
 /** Uneven gallery cells — index drives which tile gets the tall crop. */
 function cnGallery(index: number): string {

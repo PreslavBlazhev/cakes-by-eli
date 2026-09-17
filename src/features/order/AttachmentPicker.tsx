@@ -5,6 +5,7 @@ import { ImagePlus, X } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format";
+import { shrinkImageFile } from "@/lib/shrink-image";
 
 const ACCEPT = "image/jpeg,image/png,image/webp";
 
@@ -43,20 +44,27 @@ export function AttachmentPicker({
     [previews],
   );
 
-  const accept = (incoming: FileList | null) => {
+  const accept = async (incoming: FileList | null) => {
     if (!incoming) return;
     setLocalError(null);
 
+    // Copied before the input is cleared below, which empties the FileList.
+    const chosen = Array.from(incoming);
+    if (inputRef.current) inputRef.current.value = "";
+
     const next = [...files];
-    for (const file of Array.from(incoming)) {
+    for (const original of chosen) {
       if (next.length >= maxFiles) {
         setLocalError(`Може да прикачите най-много ${maxFiles} снимки.`);
         break;
       }
-      if (!ACCEPT.split(",").includes(file.type)) {
-        setLocalError(`„${file.name}“ не е JPG, PNG или WEBP.`);
+      if (!ACCEPT.split(",").includes(original.type)) {
+        setLocalError(`„${original.name}“ не е JPG, PNG или WEBP.`);
         continue;
       }
+      // A phone photo is usually above the limit as taken; downscaled to the
+      // size the server stores anyway, it fits comfortably.
+      const file = await shrinkImageFile(original);
       if (file.size > maxFileMb * 1024 * 1024) {
         setLocalError(`„${file.name}“ е по-голяма от ${maxFileMb} MB.`);
         continue;
@@ -65,7 +73,6 @@ export function AttachmentPicker({
     }
 
     onChange(next);
-    if (inputRef.current) inputRef.current.value = "";
   };
 
   const message = error ?? localError;

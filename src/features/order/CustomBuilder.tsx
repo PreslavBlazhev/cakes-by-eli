@@ -97,7 +97,7 @@ export function CustomBuilder({
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.78fr)] lg:items-start lg:gap-14">
       {/* ------------------------------------------- Mobile sticky preview */}
-      <div className="sticky top-[72px] z-30 -mx-4 mb-2 border-y border-line bg-cream/97 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="sticky top-[72px] z-30 -mx-4 mb-2 border-y border-line bg-cream px-4 py-3 lg:hidden">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center gap-3">
             <span className="frame size-14 flex-none bg-paper">

@@ -105,6 +105,44 @@ function localBaseDir(): string {
     : path.join(/* turbopackIgnore: true */ process.cwd(), env.STORAGE_LOCAL_DIR);
 }
 
+const SERVED_TYPES: Record<string, string> = {
+  ".webp": "image/webp",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+};
+
+/**
+ * Reads a locally stored upload for `src/app/uploads/[...key]/route.ts`.
+ *
+ * `next start` indexes `public/` once, when the server boots, so a photo
+ * written there afterwards 404s until the next restart — the owner saw an
+ * empty frame in the gallery. Serving the directory through a route handler
+ * makes a new upload visible the moment it is saved.
+ *
+ * Only image extensions are served, and any key that would resolve outside
+ * the storage root (or through a dotfile or staging `.part` file) is refused.
+ */
+export async function readLocalUpload(
+  segments: string[],
+): Promise<{ bytes: Buffer; mimeType: string } | null> {
+  if (segments.length === 0) return null;
+  if (segments.some((s) => !s || s !== sanitizeSegment(s))) return null;
+
+  const mimeType = SERVED_TYPES[path.extname(segments.at(-1)!).toLowerCase()];
+  if (!mimeType) return null;
+
+  const baseDir = path.resolve(localBaseDir());
+  const target = path.resolve(baseDir, ...segments);
+  if (!target.startsWith(baseDir + path.sep)) return null;
+
+  try {
+    return { bytes: await fs.readFile(target), mimeType };
+  } catch {
+    return null;
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * S3-compatible (production)
  * ------------------------------------------------------------------ */

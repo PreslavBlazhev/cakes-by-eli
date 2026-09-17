@@ -64,10 +64,10 @@ export function Header({
     <header
       data-site-header
       className={cn(
-        "sticky top-0 z-50 transition-[background-color,border-color] duration-300",
-        scrolled
-          ? "border-b border-line bg-cream/95 backdrop-blur-md"
-          : "border-b border-transparent bg-cream",
+        // Solid rather than translucent + backdrop blur: a blurred sticky bar
+        // re-samples everything scrolling beneath it on every frame.
+        "sticky top-0 z-50 bg-cream transition-[border-color] duration-300",
+        scrolled ? "border-b border-line" : "border-b border-transparent",
       )}
     >
       <div className="wrap">

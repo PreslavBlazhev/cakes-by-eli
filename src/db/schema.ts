@@ -167,6 +167,12 @@ export const siteSettings = pgTable("site_settings", {
   orderDisclaimer: text("order_disclaimer").notNull().default(""),
   metaDescription: text("meta_description").notNull().default(""),
 
+  /** Remaining home-page copy, keyed as in `src/lib/home-content.ts`. */
+  homeContent: jsonb("home_content")
+    .$type<Record<string, string>>()
+    .notNull()
+    .default({}),
+
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

@@ -55,6 +55,7 @@ export function GalleryManager({
       <Card title="Качване на снимки" className="mb-4">
         <ActionForm
           action={uploadGalleryImages}
+          splitFiles="images"
           resetOnSuccess
           className="grid gap-4 sm:grid-cols-[1.4fr_1fr_auto] sm:items-end"
         >

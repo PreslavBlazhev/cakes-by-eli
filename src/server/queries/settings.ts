@@ -39,6 +39,7 @@ const FALLBACK: SiteSettings = {
   orderDisclaimer:
     "Поръчката се счита за потвърдена след потвърждение от Cakes by ELI.",
   metaDescription: "",
+  homeContent: {},
   updatedAt: new Date(),
 };
 

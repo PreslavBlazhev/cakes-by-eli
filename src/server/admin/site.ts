@@ -12,6 +12,7 @@ import {
   siteSettings,
   workingHours,
 } from "@/db/schema";
+import { readHomeContentForm } from "@/lib/home-content";
 import { storeUploadedImage } from "@/lib/storage";
 import { sanitizeText, timeSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
@@ -113,6 +114,9 @@ export async function saveSiteSettings(
       businessName: sanitizeText(values.businessName),
       aboutText: sanitizeText(values.aboutText),
       aboutTitle: sanitizeText(values.aboutTitle),
+      heroSubtitle: sanitizeText(values.heroSubtitle),
+      aboutQuote: sanitizeText(values.aboutQuote),
+      homeContent: readHomeContentForm(formData, sanitizeText),
       updatedAt: new Date(),
     };
 

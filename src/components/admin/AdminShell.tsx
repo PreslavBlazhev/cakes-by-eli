@@ -77,7 +77,7 @@ export function AdminShell({
     {
       title: "Сайт",
       items: [
-        { href: "/admin/content", label: "Съдържание", icon: Settings },
+        { href: "/admin/content", label: "Текстове на сайта", icon: Settings },
         { href: "/admin/hours", label: "Работно време", icon: Clock },
         { href: "/admin/exceptions", label: "Почивки", icon: CalendarX2 },
         { href: "/admin/announcements", label: "Съобщения", icon: Megaphone },
@@ -237,7 +237,7 @@ function titleFor(pathname: string): string {
     ["/admin/categories", "Категории"],
     ["/admin/customizations", "Персонализации"],
     ["/admin/gallery", "Галерия"],
-    ["/admin/content", "Съдържание на сайта"],
+    ["/admin/content", "Текстове на сайта"],
     ["/admin/hours", "Работно време"],
     ["/admin/exceptions", "Почивки и изключения"],
     ["/admin/announcements", "Съобщения"],

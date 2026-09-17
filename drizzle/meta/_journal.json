@@ -15,6 +15,13 @@
       "when": 1788256828543,
       "tag": "0001_drop_admin_password_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789666783288,
+      "tag": "0002_home_content",
+      "breakpoints": true
     }
   ]
 }

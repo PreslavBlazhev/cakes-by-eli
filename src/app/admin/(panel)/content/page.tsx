@@ -4,7 +4,7 @@ import { getSettings } from "@/server/queries/settings";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Съдържание на сайта" };
+export const metadata = { title: "Текстове на сайта" };
 
 export default async function AdminContentPage() {
   const settings = await getSettings();
@@ -12,8 +12,8 @@ export default async function AdminContentPage() {
   return (
     <>
       <PageHeader
-        title="Съдържание на сайта"
-        description="Данните за контакт и текстовете, които клиентите виждат. Промените излизат в сайта веднага."
+        title="Текстове на сайта"
+        description="Всички текстове от началната страница, подредени отгоре надолу както се виждат в сайта, и данните за контакт. Промените излизат в сайта веднага след „Запази“."
       />
       <ContentForm settings={settings} />
     </>

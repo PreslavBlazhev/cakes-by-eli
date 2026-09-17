@@ -8,9 +8,17 @@ import { Loader2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
+import { formFileBytes, shrinkFormImages } from "@/lib/shrink-image";
 import type { ActionResult } from "@/server/admin/types";
 
 type Action = (formData: FormData) => Promise<ActionResult>;
+
+/**
+ * What the browser may send in one request. Next refuses a server-action body
+ * above `serverActions.bodySizeLimit` (12 MB) before our code runs, and all
+ * the owner would see is a generic failure — so the form says it first.
+ */
+const MAX_REQUEST_FILE_BYTES = 10 * 1024 * 1024;
 
 /**
  * Wraps a server action so every admin mutation gives the same feedback:
@@ -24,8 +32,14 @@ export function ActionForm({
   className,
   onSuccess,
   resetOnSuccess,
+  splitFiles,
   id,
 }: {
+  /**
+   * Name of a multi-file input whose files are sent one request each, so
+   * selecting twenty photos never runs into the request size limit.
+   */
+  splitFiles?: string;
   action: Action;
   children:
     | ReactNode
@@ -49,7 +63,25 @@ export function ActionForm({
       setPending(true);
       setFieldErrors({});
       try {
-        const result = await action(formData);
+        // Phone photos are downscaled in the browser first — see
+        // `src/lib/shrink-image.ts`. Forms without files pass straight through.
+        const payload =
+          formFileBytes(formData) > 0
+            ? await shrinkFormImages(formData)
+            : formData;
+
+        const result = splitFiles
+          ? await runPerFile(action, payload, splitFiles)
+          : formFileBytes(payload) > MAX_REQUEST_FILE_BYTES
+            ? null
+            : await action(payload);
+
+        if (!result) {
+          toast.error(
+            "Снимките са твърде много за едно качване. Изберете по-малко наведнъж и качете останалите след това.",
+          );
+          return;
+        }
         if (result.ok) {
           toast.success(result.message);
           if (resetOnSuccess) formRef.current?.reset();
@@ -68,7 +100,7 @@ export function ActionForm({
         setPending(false);
       }
     },
-    [action, onSuccess, resetOnSuccess, router, toast],
+    [action, onSuccess, resetOnSuccess, router, splitFiles, toast],
   );
 
   return (
@@ -84,6 +116,52 @@ export function ActionForm({
         : children}
     </form>
   );
+}
+
+/**
+ * Sends each file of `field` in its own request, alongside the form's other
+ * fields, and folds the outcomes into one result.
+ */
+async function runPerFile(
+  action: Action,
+  formData: FormData,
+  field: string,
+): Promise<ActionResult> {
+  const files = formData
+    .getAll(field)
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+  if (files.length <= 1) return action(formData);
+
+  let uploaded = 0;
+  const problems: string[] = [];
+
+  for (const file of files) {
+    const single = new FormData();
+    for (const [name, value] of formData.entries()) {
+      if (name !== field) single.append(name, value);
+    }
+    single.append(field, file);
+
+    try {
+      const result = await action(single);
+      if (result.ok) uploaded += 1;
+      else problems.push(result.message);
+    } catch {
+      problems.push(`${file.name}: връзката прекъсна.`);
+    }
+  }
+
+  if (problems.length === 0) {
+    return { ok: true, message: `Качени са ${uploaded} снимки.` };
+  }
+  return {
+    ok: false,
+    message:
+      uploaded > 0
+        ? `Качени са ${uploaded} от ${files.length} снимки. ${problems.join(" ")}`
+        : problems.join(" "),
+  };
 }
 
 export function SubmitButton({
