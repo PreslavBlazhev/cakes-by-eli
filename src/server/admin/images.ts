@@ -1,15 +1,21 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { categories, galleryItems, productImages } from "@/db/schema";
+import {
+  categories,
+  galleryItems,
+  productImages,
+  siteSettings,
+} from "@/db/schema";
 import { keyFromUrl, storage } from "@/lib/storage";
 
 /**
  * Pictures are shared, not copied.
  *
- * The same file can illustrate a gallery entry, a category and several
- * products, so a row in any of those tables is only a pointer. Two rules
- * follow, and both live here so no call site can forget one:
+ * The same file can illustrate a gallery entry, a category, several products
+ * and the first screen, so a row — or a path in the settings — is only a
+ * pointer. Two rules follow, and both live here so no call site can forget
+ * one:
  *
  *  - a path may be attached to a product only if the site already knows it,
  *    otherwise a crafted form could point a product at any URL;
@@ -43,7 +49,7 @@ export async function removeImageFileIfUnused(path: string): Promise<void> {
   const key = keyFromUrl(path);
   if (!key) return;
 
-  const [gallery, product, category] = await Promise.all([
+  const [gallery, product, category, settings] = await Promise.all([
     db
       .select({ id: galleryItems.id })
       .from(galleryItems)
@@ -59,9 +65,23 @@ export async function removeImageFileIfUnused(path: string): Promise<void> {
       .from(categories)
       .where(eq(categories.imagePath, path))
       .limit(1),
+    db
+      .select({ heroImages: siteSettings.heroImages })
+      .from(siteSettings)
+      .where(eq(siteSettings.id, 1))
+      .limit(1),
   ]);
 
-  if (gallery.length > 0 || product.length > 0 || category.length > 0) return;
+  const pinnedToHero = settings[0]?.heroImages?.includes(path) ?? false;
+
+  if (
+    gallery.length > 0 ||
+    product.length > 0 ||
+    category.length > 0 ||
+    pinnedToHero
+  ) {
+    return;
+  }
 
   await storage().remove(key);
 }

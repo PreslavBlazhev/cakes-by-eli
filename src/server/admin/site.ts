@@ -12,11 +12,12 @@ import {
   siteSettings,
   workingHours,
 } from "@/db/schema";
+import { readHeroImagesForm } from "@/lib/hero-images";
 import { readHomeContentForm } from "@/lib/home-content";
 import { storeUploadedImage } from "@/lib/storage";
 import { sanitizeText, timeSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
-import { removeImageFileIfUnused } from "./images";
+import { knownImagePaths, removeImageFileIfUnused } from "./images";
 import { describeError, FAIL, OK } from "./types";
 import type { ActionResult } from "./types";
 
@@ -108,9 +109,19 @@ export async function saveSiteSettings(
       });
     }
 
+    // Pinned by path, so the picture the first screen shows is accepted only
+    // if the site already holds it — the same rule product photos follow.
+    const heroPicks = readHeroImagesForm(formData);
+    let heroImages: string[] = [];
+    if (heroPicks.length > 0) {
+      const known = await knownImagePaths();
+      heroImages = heroPicks.filter((path) => known.has(path));
+    }
+
     const record = {
       ...values,
       ...cleaned,
+      heroImages,
       businessName: sanitizeText(values.businessName),
       aboutText: sanitizeText(values.aboutText),
       aboutTitle: sanitizeText(values.aboutTitle),

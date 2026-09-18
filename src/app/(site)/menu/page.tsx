@@ -34,7 +34,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function MenuPage() {
   const [categories, featured] = await Promise.all([
     listPublicCategories(),
-    listPublicProducts({ featuredOnly: true, limit: 3 }),
+    // No cap: the grid takes however many the owner marked „Избрано“.
+    listPublicProducts({ featuredOnly: true }),
   ]);
 
   const visible = categories.filter((c) => c.productCount > 0 || c.description);

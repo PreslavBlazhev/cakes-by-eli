@@ -31,6 +31,7 @@ const FALLBACK: SiteSettings = {
   heroTitle: "",
   heroTitleAccent: "",
   heroSubtitle: "",
+  heroImages: [],
   aboutEyebrow: "",
   aboutTitle: "",
   aboutText: "",

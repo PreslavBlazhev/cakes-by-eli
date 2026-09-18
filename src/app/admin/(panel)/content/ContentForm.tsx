@@ -13,7 +13,9 @@ import {
   type HomeField,
 } from "@/lib/home-content";
 import { cn } from "@/lib/cn";
+import { HeroImages } from "./HeroImages";
 import { saveSiteSettings } from "@/server/admin/site";
+import type { LibraryImage } from "@/server/queries/gallery";
 import type { SiteSettings } from "@/server/queries/settings";
 
 type SectionId = (typeof HOME_SECTIONS)[number]["id"];
@@ -46,7 +48,13 @@ const JUMPS: [string, string][] = [
   ["orders", "Контакти и поръчки"],
 ];
 
-export function ContentForm({ settings }: { settings: SiteSettings }) {
+export function ContentForm({
+  settings,
+  library,
+}: {
+  settings: SiteSettings;
+  library: LibraryImage[];
+}) {
   const home = resolveHomeContent(settings.homeContent);
 
   return (
@@ -154,6 +162,8 @@ export function ContentForm({ settings }: { settings: SiteSettings }) {
                     className="min-h-24"
                   />
                 </Field>
+
+                <HeroImages chosen={settings.heroImages} library={library} />
 
                 <HomeFields fields={section("hero-extra").fields} values={home} />
               </div>

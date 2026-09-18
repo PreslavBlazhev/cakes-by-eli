@@ -158,6 +158,12 @@ export const siteSettings = pgTable("site_settings", {
   heroTitleAccent: text("hero_title_accent").notNull().default(""),
   heroSubtitle: text("hero_subtitle").notNull().default(""),
 
+  /**
+   * The photographs in the first screen's collage, as site-relative paths.
+   * Empty means "decide from the catalogue" — see the home page.
+   */
+  heroImages: jsonb("hero_images").$type<string[]>().notNull().default([]),
+
   aboutEyebrow: text("about_eyebrow").notNull().default(""),
   aboutTitle: text("about_title").notNull().default(""),
   aboutText: text("about_text").notNull().default(""),

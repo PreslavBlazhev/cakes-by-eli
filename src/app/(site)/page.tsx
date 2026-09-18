@@ -13,15 +13,19 @@ import {
   SectionHeading,
 } from "@/components/ui/primitives";
 import { listPublicCategories, listPublicProducts } from "@/server/queries/catalog";
-import { listGallery } from "@/server/queries/gallery";
+import { describeImagePaths, listGallery } from "@/server/queries/gallery";
 import {
   getSettings,
   getUpcomingExceptions,
   getWorkingHours,
 } from "@/server/queries/settings";
 import { cn } from "@/lib/cn";
+import { HERO_IMAGE_SLOTS, resolveHeroPaths } from "@/lib/hero-images";
 import { homeList, resolveHomeContent } from "@/lib/home-content";
 import { todayStatusSentence } from "@/lib/schedule";
+
+/** The home page mosaic is a fixed six-plate composition, not a list. */
+const GALLERY_TILES = 6;
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +34,12 @@ export default async function HomePage() {
     await Promise.all([
       getSettings(),
       listPublicCategories(),
-      listPublicProducts({ featuredOnly: true, limit: 5 }),
-      listGallery({ featuredOnly: true, limit: 6 }),
+      // Every product the owner marked „Избрано“: the section lays out as
+      // many as there are, so the count is her decision and not a constant.
+      listPublicProducts({ featuredOnly: true }),
+      // A few more than the six the mosaic shows: whatever the first screen
+      // already uses is dropped from it, so no photograph appears twice.
+      listGallery({ featuredOnly: true, limit: GALLERY_TILES + HERO_IMAGE_SLOTS }),
       getWorkingHours(),
       getUpcomingExceptions(),
     ]);
@@ -59,13 +67,37 @@ export default async function HomePage() {
   const heroCategories = categories.slice(0, 4);
   const mapsHost = settings.mapsUrl;
 
-  // The hero is photographic. Featured work is the best-lit material the
-  // owner has, so it is what leads — with the gallery as the fallback for
-  // a catalogue that has not been filled in yet.
-  const heroImages = [
-    ...featured.map((p) => p.images[0]).filter(Boolean),
-    ...gallery,
-  ].slice(0, 3);
+  // The hero is photographic, and which photographs it shows is the owner's
+  // call — Админ → Текстове на сайта → „1. Първи екран“. Until she pins any,
+  // the featured work leads with the gallery behind it, so a site that was
+  // only just filled in still opens with a picture.
+  const heroPaths = resolveHeroPaths(settings.heroImages, [
+    ...featured.map((p) => p.images[0]?.path),
+    ...gallery.map((item) => item.path),
+  ]);
+  const heroLabels = new Map<string, string>();
+  for (const product of featured) {
+    const cover = product.images[0];
+    if (cover) heroLabels.set(cover.path, cover.alt || product.name);
+  }
+  for (const item of gallery) heroLabels.set(item.path, item.caption);
+  // A pinned photograph may come from outside those two lists; one small
+  // lookup gives it its alt text.
+  const unlabelled = heroPaths.filter((path) => !heroLabels.has(path));
+  if (unlabelled.length > 0) {
+    for (const [path, label] of await describeImagePaths(unlabelled)) {
+      heroLabels.set(path, label);
+    }
+  }
+  const heroImages = heroPaths.map((path) => ({
+    path,
+    alt: heroLabels.get(path) ?? "",
+  }));
+
+  const heroPathSet = new Set(heroPaths);
+  const galleryTiles = gallery
+    .filter((item) => !heroPathSet.has(item.path))
+    .slice(0, GALLERY_TILES);
 
   return (
     <>
@@ -283,7 +315,7 @@ export default async function HomePage() {
       </Section>
 
       {/* ========================================================= Gallery */}
-      {gallery.length > 0 ? (
+      {galleryTiles.length > 0 ? (
         <Section tone="stone">
           <Container>
             <SectionHeading
@@ -306,7 +338,7 @@ export default async function HomePage() {
 
             {/* Deliberately uneven: two tall plates flanking a stack. */}
             <div className="mt-14 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-5">
-              {gallery.slice(0, 6).map((item, index) => (
+              {galleryTiles.map((item, index) => (
                 <Link
                   key={item.id}
                   href="/gallery"

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { categories, galleryItems, productImages, products } from "@/db/schema";
@@ -117,4 +117,39 @@ export async function listImageLibrary(): Promise<LibraryImage[]> {
   const images = [...byPath.values()].slice(0, MAX_LIBRARY_ROWS);
   warnIfTruncated("listImageLibrary", images, MAX_LIBRARY_ROWS);
   return images;
+}
+
+/**
+ * Alt text for pictures addressed by path alone — the ones the owner pinned
+ * to the first screen. Only the paths asked for are read, so a home page that
+ * shows three photographs runs two small lookups, not a library listing.
+ */
+export async function describeImagePaths(
+  paths: readonly string[],
+): Promise<Map<string, string>> {
+  const wanted = [...new Set(paths)].filter(Boolean);
+  if (wanted.length === 0) return new Map();
+
+  const [gallery, attached] = await Promise.all([
+    db
+      .select({ path: galleryItems.path, caption: galleryItems.caption })
+      .from(galleryItems)
+      .where(inArray(galleryItems.path, wanted)),
+    db
+      .select({ path: productImages.path, alt: productImages.alt, name: products.name })
+      .from(productImages)
+      .innerJoin(products, eq(productImages.productId, products.id))
+      .where(inArray(productImages.path, wanted)),
+  ]);
+
+  const labels = new Map<string, string>();
+  for (const row of attached) {
+    if (!labels.has(row.path)) labels.set(row.path, row.alt || row.name);
+  }
+  // A caption describes the picture itself, so it wins over a product name.
+  for (const row of gallery) {
+    if (row.caption) labels.set(row.path, row.caption);
+    else if (!labels.has(row.path)) labels.set(row.path, "");
+  }
+  return labels;
 }
