@@ -11,7 +11,7 @@ export const OK = (message: string, id?: string): ActionResult => ({
 export const FAIL = (
   message: string,
   fieldErrors?: Record<string, string>,
-): ActionResult => ({ ok: false, message, fieldErrors });
+): Extract<ActionResult, { ok: false }> => ({ ok: false, message, fieldErrors });
 
 /** Turns an unexpected throw into a message the owner can act on. */
 export function describeError(error: unknown): string {

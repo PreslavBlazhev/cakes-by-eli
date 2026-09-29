@@ -29,6 +29,13 @@
       "when": 1789723130301,
       "tag": "0003_hero_images",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790697275771,
+      "tag": "0004_econt_payment",
+      "breakpoints": true
     }
   ]
 }

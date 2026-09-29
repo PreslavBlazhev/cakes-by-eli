@@ -36,13 +36,22 @@ export function Modal({
   const titleId = useId();
   const descId = useId();
 
+  // Callers pass an inline onClose, so it changes on every render. Reading it
+  // through a ref keeps the effect below tied to `open` alone — otherwise
+  // each keystroke in a controlled field re-ran it and yanked focus back to
+  // the first element of the dialog.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!open) return;
 
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -71,7 +80,7 @@ export function Modal({
         first.focus();
       }
     },
-    [open, onClose],
+    [open],
   );
 
   useEffect(() => {

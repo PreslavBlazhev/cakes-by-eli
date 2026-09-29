@@ -56,6 +56,9 @@ export function ActionForm({
   const toast = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, setPending] = useState(false);
+  // State lands a render later, so a fast double click would slip past
+  // `pending`; the ref closes that gap synchronously.
+  const inFlight = useRef(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const submit = useCallback(
@@ -107,7 +110,17 @@ export function ActionForm({
     <form
       id={id}
       ref={formRef}
-      action={submit}
+      // onSubmit rather than `action`: React resets a form after an action
+      // runs, even a failed one, which silently reverted whatever the owner
+      // had corrected. Clearing is opt-in through `resetOnSuccess`.
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (inFlight.current) return;
+        inFlight.current = true;
+        void submit(new FormData(event.currentTarget)).finally(() => {
+          inFlight.current = false;
+        });
+      }}
       className={className}
       noValidate
     >

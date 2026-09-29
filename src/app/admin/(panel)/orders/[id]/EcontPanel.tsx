@@ -24,18 +24,22 @@ import { Badge } from "@/components/ui/primitives";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { formatDate, formatPrice } from "@/lib/format";
+import type { EcontReadiness } from "@/lib/econt/readiness";
 import {
   calculateEcontShipment,
   createEcontShipment,
   refreshEcontStatus,
   voidEcontShipmentRecord,
 } from "@/server/admin/econt";
+import type { EcontQuote } from "@/server/admin/econt";
 
 export type ShipmentView = {
   id: string;
   shipmentNumber: string;
   pdfUrl: string | null;
   totalPriceCents: number | null;
+  codAmountCents: number | null;
+  receiverDueCents: number | null;
   currency: string | null;
   expectedDeliveryDate: string | null;
   environment: string;
@@ -65,29 +69,50 @@ export type ShipmentDefaults = {
   description: string;
 };
 
+const CONFIRMATIONS = new Set(["codConfirmed", "confirmDuplicate"]);
+
 /**
  * Econt waybill management.
  *
  * Creating a waybill costs real money, so the flow is: review a prefilled
- * form, optionally price it first, then create. A second waybill for the same
- * order requires an explicit confirmation.
+ * form, decide on cash on delivery, price it through Econt, then create. The
+ * customer always pays for delivery. Any change to the form discards the
+ * price, so what gets created is what was priced. A second waybill for the
+ * same order requires an explicit confirmation.
  */
 export function EcontPanel({
   shipments,
   defaults,
-  configured,
+  readiness,
+  estimatedPriceCents,
+  priceIsEstimate,
   environment,
   trackingBaseUrl,
 }: {
   shipments: ShipmentView[];
   defaults: ShipmentDefaults;
-  configured: boolean;
+  readiness: EcontReadiness;
+  estimatedPriceCents: number | null;
+  priceIsEstimate: boolean;
   environment: string;
   trackingBaseUrl: string;
 }) {
+  const configured = readiness.ready;
   const [open, setOpen] = useState(false);
   const [deliveryTo, setDeliveryTo] = useState(defaults.deliveryTo);
+  const [paymentMode, setPaymentMode] = useState<"cod" | "prepaid" | "">("");
+  const [codAmount, setCodAmount] = useState("");
+  const [quote, setQuote] = useState<EcontQuote | null>(null);
   const active = shipments.filter((s) => !s.voidedAt);
+  const referencePrice = formatPrice(estimatedPriceCents);
+
+  const openForm = () => {
+    setQuote(null);
+    setPaymentMode("");
+    setCodAmount("");
+    setDeliveryTo(defaults.deliveryTo);
+    setOpen(true);
+  };
 
   return (
     <Card
@@ -100,7 +125,7 @@ export function EcontPanel({
       actions={
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openForm}
           disabled={!configured}
           className="inline-flex min-h-10 items-center gap-2 rounded-[3px] bg-ink px-4 text-[0.86rem] font-semibold text-paper transition-colors hover:bg-cocoa disabled:opacity-50"
         >
@@ -110,11 +135,17 @@ export function EcontPanel({
       }
     >
       {!configured ? (
-        <p className="flex items-start gap-2 rounded-[var(--radius-sm)] border border-warning/30 bg-warning-soft px-4 py-3 text-[0.86rem] text-warning">
+        <div className="mb-4 flex items-start gap-2 rounded-[var(--radius-sm)] border border-warning/30 bg-warning-soft px-4 py-3 text-[0.86rem] text-warning">
           <AlertTriangle size={15} aria-hidden="true" className="mt-0.5 flex-none" />
-          Интеграцията с Еконт не е конфигурирана. Попълнете ECONT_USERNAME и
-          ECONT_PASSWORD в средата, за да създавате товарителници.
-        </p>
+          <div>
+            <p className="font-bold">Товарителници още не могат да се създават</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+              {readiness.problems.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
       ) : null}
 
       {shipments.length === 0 ? (
@@ -147,11 +178,26 @@ export function EcontPanel({
               <DefinitionList
                 className="mt-3"
                 items={[
+                  // Older waybills predate the recorded payer split, so they
+                  // only claim what is actually known about them.
+                  shipment.receiverDueCents === null
+                    ? {
+                        label: "Цена на доставката",
+                        value:
+                          formatPrice(shipment.totalPriceCents) ??
+                          "няма информация",
+                      }
+                    : {
+                        label: "Доставка (плаща получателят)",
+                        value: formatPrice(shipment.receiverDueCents) ?? "—",
+                      },
                   {
-                    label: "Цена на доставката",
+                    label: "Наложен платеж",
                     value:
-                      formatPrice(shipment.totalPriceCents) ??
-                      "няма информация",
+                      formatPrice(shipment.codAmountCents) ??
+                      (shipment.receiverDueCents === null
+                        ? "—"
+                        : "няма (предплатена)"),
                   },
                   {
                     label: "Очаквана доставка",
@@ -243,12 +289,21 @@ export function EcontPanel({
           id="econt-shipment-form"
           action={createEcontShipment}
           onSuccess={() => setOpen(false)}
-          className="space-y-5"
         >
           {({ pending, fieldErrors }) => (
-            <>
+            // Any edit to the shipment invalidates the price, so only what was
+            // priced gets created. The confirmations do not change the price.
+            <div
+              className="space-y-5"
+              onChange={(event) => {
+                const name = (event.target as HTMLInputElement).name;
+                if (!CONFIRMATIONS.has(name)) setQuote(null);
+              }}
+            >
               <input type="hidden" name="orderId" value={defaults.orderId} />
               <input type="hidden" name="deliveryTo" value={deliveryTo} />
+              <input type="hidden" name="paymentMode" value={paymentMode} />
+              <input type="hidden" name="knownShipments" value={active.length} />
 
               <section>
                 <h3 className="text-[0.95rem] font-bold">Получател</h3>
@@ -296,12 +351,18 @@ export function EcontPanel({
                   <OptionCard
                     selected={deliveryTo === "office"}
                     title="Офис на Еконт"
-                    onSelect={() => setDeliveryTo("office")}
+                    onSelect={() => {
+                      setDeliveryTo("office");
+                      setQuote(null);
+                    }}
                   />
                   <OptionCard
                     selected={deliveryTo === "address"}
                     title="Адрес на получателя"
-                    onSelect={() => setDeliveryTo("address")}
+                    onSelect={() => {
+                      setDeliveryTo("address");
+                      setQuote(null);
+                    }}
                   />
                 </div>
 
@@ -459,19 +520,6 @@ export function EcontPanel({
                       min="0"
                     />
                   </Field>
-                  <Field
-                    label="Наложен платеж (EUR)"
-                    hint="Оставете празно, ако няма."
-                    htmlFor="ec-cod"
-                  >
-                    <Input
-                      id="ec-cod"
-                      name="codAmountEur"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                    />
-                  </Field>
                 </div>
 
                 <div className="mt-4 space-y-2.5">
@@ -491,13 +539,101 @@ export function EcontPanel({
                 </div>
               </section>
 
-              <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
-                <CalculateButton formId="econt-shipment-form" />
-                <SubmitButton pending={pending}>
+              <section>
+                <h3 className="text-[0.95rem] font-bold">Плащане</h3>
+                <p className="mt-1 text-[0.82rem] text-ink-soft">
+                  Доставката винаги се плаща от получателя. Наложеният платеж е
+                  отделна сума за десерта, която куриерът събира от клиента.
+                </p>
+                <div
+                  className="mt-3 grid gap-2 sm:grid-cols-2"
+                  role="radiogroup"
+                  aria-label="Наложен платеж"
+                >
+                  <OptionCard
+                    selected={paymentMode === "cod"}
+                    title="С наложен платеж"
+                    description="Клиентът плаща десерта на куриера."
+                    onSelect={() => {
+                      setPaymentMode("cod");
+                      setQuote(null);
+                    }}
+                  />
+                  <OptionCard
+                    selected={paymentMode === "prepaid"}
+                    title="Предплатена"
+                    description="Десертът е платен — без наложен платеж."
+                    onSelect={() => {
+                      setPaymentMode("prepaid");
+                      setQuote(null);
+                    }}
+                  />
+                </div>
+                {fieldErrors.paymentMode ? (
+                  <p className="mt-2 text-[0.8rem] text-danger">
+                    {fieldErrors.paymentMode}
+                  </p>
+                ) : null}
+
+                {paymentMode === "cod" ? (
+                  <div className="mt-3 space-y-3">
+                    <Field
+                      label="Наложен платеж (EUR)"
+                      required
+                      hint={
+                        referencePrice
+                          ? `За справка: ${priceIsEstimate ? "ориентировъчна цена" : "цена"} от поръчката ${referencePrice}. Въведете окончателната сума.`
+                          : "Въведете окончателната сума, договорена с клиента."
+                      }
+                      error={fieldErrors.codAmountEur}
+                      htmlFor="ec-cod"
+                    >
+                      <Input
+                        id="ec-cod"
+                        name="codAmountEur"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={codAmount}
+                        onChange={(event) => setCodAmount(event.target.value)}
+                        required
+                      />
+                    </Field>
+                    <Checkbox
+                      name="codConfirmed"
+                      label={
+                        Number(codAmount) > 0
+                          ? `Потвърждавам наложен платеж от ${formatPrice(Math.round(Number(codAmount) * 100))}`
+                          : "Потвърждавам сумата на наложения платеж"
+                      }
+                      description="Това е точната сума, която куриерът ще събере от клиента."
+                    />
+                    {fieldErrors.codConfirmed ? (
+                      <p className="text-[0.8rem] text-danger">
+                        {fieldErrors.codConfirmed}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </section>
+
+              {quote ? <QuoteSummary quote={quote} /> : null}
+
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+                {!quote ? (
+                  <p className="mr-auto text-[0.78rem] text-ink-soft">
+                    Първо изчислете цената, после създайте товарителницата.
+                  </p>
+                ) : null}
+                <CalculateButton
+                  formId="econt-shipment-form"
+                  onQuote={setQuote}
+                />
+                <SubmitButton pending={pending} disabled={!quote}>
                   Създай товарителница
                 </SubmitButton>
               </div>
-            </>
+            </div>
           )}
         </ActionForm>
       </Modal>
@@ -510,7 +646,13 @@ export function EcontPanel({
  * the form. Kept separate from the submit button so the result is reported
  * through the same toast pipeline as every other admin action.
  */
-function CalculateButton({ formId }: { formId: string }) {
+function CalculateButton({
+  formId,
+  onQuote,
+}: {
+  formId: string;
+  onQuote: (quote: EcontQuote | null) => void;
+}) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -521,8 +663,18 @@ function CalculateButton({ formId }: { formId: string }) {
     setBusy(true);
     try {
       const result = await calculateEcontShipment(new FormData(form));
-      if (result.ok) toast.success(result.message);
-      else toast.error(result.message);
+      if (result.ok) {
+        onQuote(result.quote);
+        toast.success(result.message);
+      } else {
+        onQuote(null);
+        const details = Object.values(result.fieldErrors ?? {});
+        toast.error(
+          details.length > 0
+            ? `${result.message} ${details.join(" ")}`
+            : result.message,
+        );
+      }
     } catch (error) {
       console.error(error);
       toast.error("Изчислението не беше извършено.");
@@ -541,5 +693,50 @@ function CalculateButton({ formId }: { formId: string }) {
       <Calculator size={14} aria-hidden="true" />
       {busy ? "Изчисляване…" : "Изчисли цената"}
     </button>
+  );
+}
+
+/** What Econt quoted, split the way it will actually be collected. */
+function QuoteSummary({ quote }: { quote: EcontQuote }) {
+  const senderPays = (quote.senderDueCents ?? 0) > 0;
+  return (
+    <section className="rounded-[var(--radius-sm)] border border-line bg-surface-sunk px-4 py-3">
+      <h3 className="text-[0.95rem] font-bold">Изчисление от Еконт</h3>
+      <DefinitionList
+        className="mt-2"
+        items={[
+          {
+            label: "Доставка — плаща получателят",
+            value: formatPrice(quote.receiverDueCents) ?? "—",
+          },
+          {
+            label: "Наложен платеж",
+            value: formatPrice(quote.codAmountCents) ?? "няма (предплатена)",
+          },
+          {
+            label: "Очаквана доставка",
+            value: quote.expectedDeliveryDate
+              ? formatDate(quote.expectedDeliveryDate)
+              : "—",
+          },
+        ]}
+      />
+      {quote.services.length > 0 ? (
+        <ul className="mt-2 space-y-0.5 text-[0.78rem] text-ink-soft">
+          {quote.services.map((service, index) => (
+            <li key={index}>
+              {service.description}: {service.price.toFixed(2)} {service.currency}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {senderPays ? (
+        <p className="mt-2 flex items-start gap-2 text-[0.82rem] font-semibold text-danger">
+          <AlertTriangle size={14} aria-hidden="true" className="mt-0.5 flex-none" />
+          Еконт начислява сума и на подателя ({formatPrice(quote.senderDueCents)}).
+          Проверете договора с Еконт, преди да създадете товарителницата.
+        </p>
+      ) : null}
+    </section>
   );
 }

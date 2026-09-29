@@ -22,7 +22,8 @@ import { ShippingForm } from "./ShippingForm";
 import { StatusControl } from "./StatusControl";
 import type { ConfigState } from "@/features/configurator/types";
 import { readSnapshot, snapshotTitle } from "@/features/orders/snapshot";
-import { econtEnvironment, econtIsConfigured } from "@/lib/econt/client";
+import { econtEnvironment } from "@/lib/econt/client";
+import { econtReadiness } from "@/lib/econt/readiness";
 import { env } from "@/lib/env";
 import {
   formatBytes,
@@ -73,6 +74,10 @@ export default async function AdminOrderPage({ params }: Params) {
 
   const failedEmails = emails.filter((email) => email.status !== "SENT");
 
+  // Checked only where a waybill can actually be issued.
+  const econtState =
+    order.fulfillmentMethod === "PICKUP" ? null : await econtReadiness();
+
   return (
     <>
       <PageHeader
@@ -109,6 +114,10 @@ export default async function AdminOrderPage({ params }: Params) {
                 </li>
               ))}
             </ul>
+            <p className="mt-1.5">
+              Тези писма не се изпращат повторно автоматично. Ако е нужно,
+              свържете се с клиента по телефон или имейл.
+            </p>
           </div>
         </div>
       ) : null}
@@ -352,7 +361,9 @@ export default async function AdminOrderPage({ params }: Params) {
               </Card>
 
               <EcontPanel
-                configured={econtIsConfigured()}
+                readiness={econtState ?? { ready: false, problems: [] }}
+                estimatedPriceCents={order.estimatedPriceCents}
+                priceIsEstimate={order.priceIsEstimate}
                 environment={econtEnvironment()}
                 trackingBaseUrl="https://www.econt.com/services/track-shipment/"
                 shipments={shipments.map((shipment) => ({
@@ -360,6 +371,8 @@ export default async function AdminOrderPage({ params }: Params) {
                   shipmentNumber: shipment.shipmentNumber,
                   pdfUrl: shipment.pdfUrl,
                   totalPriceCents: shipment.totalPriceCents,
+                  codAmountCents: shipment.codAmountCents,
+                  receiverDueCents: shipment.receiverDueCents,
                   currency: shipment.currency,
                   expectedDeliveryDate:
                     shipment.expectedDeliveryDate?.toISOString() ?? null,

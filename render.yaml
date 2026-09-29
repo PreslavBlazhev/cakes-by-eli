@@ -132,11 +132,17 @@ services:
         sync: false
       - key: ECONT_SENDER_POST_CODE
         sync: false
+      - key: ECONT_SENDER_QUARTER
+        sync: false
       - key: ECONT_SENDER_STREET
         sync: false
       - key: ECONT_SENDER_STREET_NUM
         sync: false
       - key: ECONT_SENDER_OTHER
+        sync: false
+      # Изпращане от офис на Еконт вместо вземане от адрес. Попълнен код на
+      # офис замества адреса по-горе.
+      - key: ECONT_SENDER_OFFICE_CODE
         sync: false
 
 databases:

@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { econtSenderGaps, env } from "@/lib/env";
 import { econtCall, EcontError } from "./client";
 import type {
   EcontAddress,
@@ -42,15 +42,20 @@ export type ShipmentInput = {
   keepUpright?: boolean;
   sizeUnder65cm?: boolean;
   declaredValueEur?: number | null;
-  /** Cash on delivery, in EUR. */
+  /**
+   * Cash on delivery for the goods, in EUR — separate from the delivery
+   * charge. Omit (or 0) for a prepaid order.
+   */
   codAmountEur?: number | null;
-  payer?: "sender" | "receiver";
 };
 
 export type ShipmentOutcome = {
   shipmentNumber: string | null;
   pdfUrl: string | null;
   totalPriceCents: number | null;
+  /** What Econt collects from each side for the delivery, in cents. */
+  senderDueCents: number | null;
+  receiverDueCents: number | null;
   currency: string | null;
   expectedDeliveryDate: Date | null;
   services: { description: string; price: number; currency: string }[];
@@ -63,20 +68,18 @@ function senderBlocks(): Pick<
   EcontLabelRequest,
   "senderClient" | "senderAgent" | "senderAddress" | "senderOfficeCode"
 > {
-  if (!env.ECONT_SENDER_NAME || !env.ECONT_SENDER_PHONE) {
-    throw new EcontError(
-      "Данните на подателя не са конфигурирани. Попълнете ECONT_SENDER_NAME и ECONT_SENDER_PHONE.",
-      { type: "SenderNotConfigured" },
-    );
+  const gaps = econtSenderGaps();
+  if (gaps.length > 0) {
+    throw new EcontError(gaps.join(" "), { type: "SenderNotConfigured" });
   }
 
   const senderClient = {
-    name: env.ECONT_SENDER_NAME,
-    phones: [env.ECONT_SENDER_PHONE],
+    name: env.ECONT_SENDER_NAME!,
+    phones: [env.ECONT_SENDER_PHONE!],
   };
 
   const senderAgent = env.ECONT_SENDER_AGENT_NAME
-    ? { name: env.ECONT_SENDER_AGENT_NAME, phones: [env.ECONT_SENDER_PHONE] }
+    ? { name: env.ECONT_SENDER_AGENT_NAME, phones: [env.ECONT_SENDER_PHONE!] }
     : undefined;
 
   if (env.ECONT_SENDER_OFFICE_CODE) {
@@ -85,13 +88,6 @@ function senderBlocks(): Pick<
       senderAgent,
       senderOfficeCode: env.ECONT_SENDER_OFFICE_CODE,
     };
-  }
-
-  if (!env.ECONT_SENDER_CITY_ID || !env.ECONT_SENDER_CITY_NAME) {
-    throw new EcontError(
-      "Адресът на подателя не е конфигуриран. Попълнете ECONT_SENDER_CITY_ID и ECONT_SENDER_CITY_NAME (или ECONT_SENDER_OFFICE_CODE).",
-      { type: "SenderNotConfigured" },
-    );
   }
 
   const senderAddress: EcontAddress = {
@@ -128,10 +124,10 @@ export function buildLabelRequest(input: ShipmentInput): EcontLabelRequest {
     shipmentDescription: input.description.slice(0, 250),
     keepUpright: input.keepUpright ?? true,
     sizeUnder65cm: input.sizeUnder65cm ?? false,
-    paymentSenderMethod:
-      (input.payer ?? "sender") === "sender" ? "cash" : undefined,
-    paymentReceiverMethod:
-      (input.payer ?? "sender") === "receiver" ? "cash" : undefined,
+    // The customer always pays for delivery. Only the receiver's method is
+    // set, so Econt bills the whole charge to the receiver — the response
+    // confirms it as receiverDueAmount with senderDueAmount at zero.
+    paymentReceiverMethod: "cash",
   };
 
   if (input.officeCode) {
@@ -178,14 +174,15 @@ export async function submitLabel(
   );
 
   const label = response.label ?? {};
+  const cents = (value: number | null | undefined) =>
+    typeof value === "number" ? Math.round(value * 100) : null;
 
   return {
     shipmentNumber: label.shipmentNumber || null,
     pdfUrl: label.pdfURL || null,
-    totalPriceCents:
-      typeof label.totalPrice === "number"
-        ? Math.round(label.totalPrice * 100)
-        : null,
+    totalPriceCents: cents(label.totalPrice),
+    senderDueCents: cents(label.senderDueAmount),
+    receiverDueCents: cents(label.receiverDueAmount),
     currency: label.currency ?? null,
     expectedDeliveryDate: label.expectedDeliveryDate
       ? new Date(label.expectedDeliveryDate)

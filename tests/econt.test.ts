@@ -337,3 +337,123 @@ describe("configuration guards", () => {
     ).rejects.toThrow(/ECONT_SENDER_CITY_ID/);
   });
 });
+
+describe("who pays", () => {
+  it("bills delivery to the receiver and never to the sender", async () => {
+    const spy = stubFetch({ body: { label: {} } });
+    const { createShipment } = await import("@/lib/econt/shipments");
+
+    await createShipment({
+      receiverName: "Иван",
+      receiverPhone: "0888123456",
+      officeCode: "1010",
+      packCount: 1,
+      weightKg: 1,
+      description: "Торта",
+    });
+
+    const [, init] = spy.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(init.body));
+    expect(payload.label.paymentReceiverMethod).toBe("cash");
+    expect(payload.label).not.toHaveProperty("paymentSenderMethod");
+  });
+
+  it("adds no cash on delivery for a prepaid order", async () => {
+    const spy = stubFetch({ body: { label: {} } });
+    const { createShipment } = await import("@/lib/econt/shipments");
+
+    await createShipment({
+      receiverName: "Иван",
+      receiverPhone: "0888123456",
+      officeCode: "1010",
+      packCount: 1,
+      weightKg: 1,
+      description: "Торта",
+      codAmountEur: null,
+    });
+
+    const [, init] = spy.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(init.body));
+    expect(payload.label).not.toHaveProperty("services");
+  });
+
+  it("reads each side's due amount from the response", async () => {
+    stubFetch({
+      body: {
+        label: { totalPrice: 6.31, senderDueAmount: 0, receiverDueAmount: 6.31 },
+      },
+    });
+    const { calculateShipment } = await import("@/lib/econt/shipments");
+
+    const outcome = await calculateShipment({
+      receiverName: "Иван",
+      receiverPhone: "0888123456",
+      officeCode: "1010",
+      packCount: 1,
+      weightKg: 1,
+      description: "Торта",
+      codAmountEur: 45.5,
+    });
+
+    expect(outcome.senderDueCents).toBe(0);
+    expect(outcome.receiverDueCents).toBe(631);
+  });
+});
+
+describe("sender location", () => {
+  const touched = [
+    "ECONT_SENDER_OFFICE_CODE",
+    "ECONT_SENDER_CITY_ID",
+    "ECONT_SENDER_CITY_NAME",
+    "ECONT_SENDER_STREET",
+    "ECONT_SENDER_STREET_NUM",
+  ];
+  afterEach(() => {
+    for (const key of touched) delete process.env[key];
+  });
+
+  it("accepts an Econt office instead of a pickup address", async () => {
+    delete process.env.ECONT_SENDER_CITY_ID;
+    delete process.env.ECONT_SENDER_CITY_NAME;
+    process.env.ECONT_SENDER_OFFICE_CODE = "5803";
+    vi.resetModules();
+
+    const spy = stubFetch({ body: { label: {} } });
+    const { econtSenderGaps } = await import("@/lib/env");
+    const { calculateShipment } = await import("@/lib/econt/shipments");
+
+    expect(econtSenderGaps()).toEqual([]);
+    await calculateShipment({
+      receiverName: "Иван",
+      receiverPhone: "0888123456",
+      officeCode: "1010",
+      packCount: 1,
+      weightKg: 1,
+      description: "Торта",
+    });
+
+    const [, init] = spy.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(String(init.body));
+    expect(payload.label.senderOfficeCode).toBe("5803");
+    expect(payload.label).not.toHaveProperty("senderAddress");
+  });
+
+  it("still reports a city without a street as incomplete", async () => {
+    delete process.env.ECONT_SENDER_STREET;
+    delete process.env.ECONT_SENDER_STREET_NUM;
+    vi.resetModules();
+
+    const { econtSenderGaps } = await import("@/lib/env");
+    expect(econtSenderGaps().join(" ")).toMatch(/непълен/);
+  });
+
+  it("reports neither office nor city as missing", async () => {
+    delete process.env.ECONT_SENDER_CITY_ID;
+    vi.resetModules();
+
+    const { configurationWarnings } = await import("@/lib/env");
+    expect(configurationWarnings().join(" ")).toMatch(
+      /ECONT_SENDER_OFFICE_CODE.*ECONT_SENDER_CITY_ID/,
+    );
+  });
+});

@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
+
+import { QuickAction } from "@/components/admin/ActionForm";
 
 import {
   AdminEmpty,
@@ -12,12 +14,14 @@ import {
   Th,
 } from "@/components/admin/ui";
 import { readSnapshot, snapshotTitle } from "@/features/orders/snapshot";
+import { env } from "@/lib/env";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { ORDER_TYPE_LABELS } from "@/lib/labels";
 import {
   getDashboardStats,
   getRecentOrders,
 } from "@/server/queries/orders";
+import { sendTestEmail } from "@/server/admin/email";
 import { getUpcomingExceptions } from "@/server/queries/settings";
 
 export const dynamic = "force-dynamic";
@@ -192,6 +196,33 @@ export default async function AdminDashboard() {
             })}
           </DataTable>
         )}
+      </Card>
+
+      <Card
+        className="mt-6"
+        title="Имейли"
+        description={
+          env.EMAIL_PROVIDER === "console"
+            ? "Имейлите не се изпращат реално — записват се само в лога на сървъра."
+            : `Изпращане през ${env.EMAIL_PROVIDER} от ${env.EMAIL_FROM ?? "(липсва EMAIL_FROM)"}. Известията отиват до ${env.OWNER_NOTIFICATION_EMAIL ?? "(не е зададен адрес)"}.`
+        }
+        actions={
+          <QuickAction
+            action={sendTestEmail}
+            hiddenFields={{}}
+            label={
+              <>
+                <Mail size={14} aria-hidden="true" />
+                Изпрати тестов имейл до мен
+              </>
+            }
+          />
+        }
+      >
+        <p className="text-[0.84rem] text-ink-soft">
+          Тестът отива само до адреса за известия, не до клиент. Неизпратените
+          по-рано писма не се изпращат повторно.
+        </p>
       </Card>
     </>
   );

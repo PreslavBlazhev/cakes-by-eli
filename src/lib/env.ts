@@ -171,6 +171,41 @@ export function sessionSecret(): Uint8Array {
   return new TextEncoder().encode(raw);
 }
 
+/**
+ * What is missing for Econt to accept this business as the sender.
+ *
+ * A shipment leaves either from an Econt office (ECONT_SENDER_OFFICE_CODE) or
+ * is collected from an address, which needs a nomenclature city plus enough
+ * of a street address for the courier to find it. Either one is sufficient;
+ * neither is a real gap, not something to hide. Whether an office code
+ * actually exists is checked against the live nomenclature on the order page.
+ */
+export function econtSenderGaps(source: Env = env): string[] {
+  const out: string[] = [];
+  if (!source.ECONT_SENDER_NAME || !source.ECONT_SENDER_PHONE) {
+    out.push(
+      "ECONT_SENDER_NAME / ECONT_SENDER_PHONE липсват — подателят за Еконт не е конфигуриран.",
+    );
+  }
+  if (source.ECONT_SENDER_OFFICE_CODE) return out;
+
+  if (!source.ECONT_SENDER_CITY_ID || !source.ECONT_SENDER_CITY_NAME) {
+    out.push(
+      "Мястото на изпращане за Еконт не е конфигурирано — задайте ECONT_SENDER_OFFICE_CODE " +
+        "(изпращане от офис) или ECONT_SENDER_CITY_ID и ECONT_SENDER_CITY_NAME с адрес (вземане от адрес).",
+    );
+  } else if (
+    !(source.ECONT_SENDER_STREET && source.ECONT_SENDER_STREET_NUM) &&
+    !(source.ECONT_SENDER_QUARTER && source.ECONT_SENDER_OTHER)
+  ) {
+    out.push(
+      "Адресът на подателя за Еконт е непълен — нужни са ECONT_SENDER_STREET и ECONT_SENDER_STREET_NUM " +
+        "(или ECONT_SENDER_QUARTER и ECONT_SENDER_OTHER), или ECONT_SENDER_OFFICE_CODE за изпращане от офис.",
+    );
+  }
+  return out;
+}
+
 /** Configuration gaps the admin UI surfaces instead of failing silently. */
 export function configurationWarnings(): string[] {
   const out: string[] = [];
@@ -195,16 +230,17 @@ export function configurationWarnings(): string[] {
   if (env.EMAIL_PROVIDER !== "console" && !env.EMAIL_FROM) {
     out.push("EMAIL_FROM липсва — писмата не могат да бъдат изпратени.");
   }
+  if (env.EMAIL_PROVIDER === "smtp") {
+    out.push(
+      "EMAIL_PROVIDER е „smtp“, но SMTP изпращането не е реализирано — използвайте „resend“.",
+    );
+  }
   if (!env.ECONT_USERNAME || !env.ECONT_PASSWORD) {
     out.push(
       "ECONT_USERNAME / ECONT_PASSWORD липсват — товарителници не могат да се създават.",
     );
   }
-  if (!env.ECONT_SENDER_CITY_ID) {
-    out.push(
-      "ECONT_SENDER_CITY_ID липсва — адресът на подателя за Еконт не е конфигуриран.",
-    );
-  }
+  for (const gap of econtSenderGaps()) out.push(gap);
   if (isProduction && !env.DATABASE_URL) {
     out.push(
       "DATABASE_URL липсва в продукция — вградената PGlite база не е подходяща за реален сайт.",

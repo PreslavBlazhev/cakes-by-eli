@@ -662,6 +662,11 @@ export const econtShipments = pgTable(
     shipmentNumber: text("shipment_number").notNull(),
     pdfUrl: text("pdf_url"),
     totalPriceCents: integer("total_price_cents"),
+    /** Cash on delivery for the goods; null for a prepaid order. */
+    codAmountCents: integer("cod_amount_cents"),
+    /** Delivery charge split as Econt confirmed it — the receiver pays. */
+    senderDueCents: integer("sender_due_cents"),
+    receiverDueCents: integer("receiver_due_cents"),
     currency: text("currency"),
     expectedDeliveryDate: timestamp("expected_delivery_date", {
       withTimezone: true,

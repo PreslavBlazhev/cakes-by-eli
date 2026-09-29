@@ -38,7 +38,7 @@ export function StatusControl({
   const canNotify = CUSTOMER_NOTIFIABLE_STATUSES.includes(status);
 
   return (
-    <ActionForm action={updateOrderStatus} className="space-y-4">
+    <ActionForm action={updateOrderStatus} resetOnSuccess className="space-y-4">
       {({ pending }) => (
         <>
           <input type="hidden" name="orderId" value={orderId} />
