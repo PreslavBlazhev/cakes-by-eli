@@ -18,6 +18,7 @@ import {
   siteSettings,
   workingHours,
 } from "@/db/schema";
+import { canonicalStoredAllergens } from "@/lib/allergens";
 import { env } from "@/lib/env";
 import { DEFAULT_WORKING_HOURS } from "@/lib/schedule";
 import {
@@ -71,6 +72,7 @@ async function main() {
   const categoryIds = await seedCategories();
   const dessertTypeIds = await seedDessertTypes(categoryIds);
   await seedAdmin();
+  await canonicalizeProductAllergens();
 
   if (!skipDemo) {
     await seedDemoProducts(categoryIds, dessertTypeIds);
@@ -523,6 +525,36 @@ async function seedAdmin() {
     name: env.ADMIN_NAME ?? "Администратор",
   });
   log(`Admin: created (${email})`);
+}
+
+/**
+ * Rewrites allergens stored as old labels to their codes and merges the ones
+ * that mean the same thing. This is here and not in a SQL migration because the
+ * build migrates while the previous release is still serving: it would show
+ * customers raw codes for minutes, and a save from its form would clear them.
+ * Pre-deploy runs right before the switch, and running it again changes nothing.
+ */
+async function canonicalizeProductAllergens() {
+  const rows = await db
+    .select({ id: products.id, slug: products.slug, allergens: products.allergens })
+    .from(products)
+    .where(sql`cardinality(${products.allergens}) > 0`);
+
+  let updated = 0;
+  for (const row of rows) {
+    const { stored, unknown } = canonicalStoredAllergens(row.allergens);
+    if (unknown.length > 0) {
+      log(`  ${row.slug}: unrecognised allergens kept — ${unknown.join(", ")}`);
+    }
+    if (stored.join("\n") === row.allergens.join("\n")) continue;
+    await db
+      .update(products)
+      .set({ allergens: stored })
+      .where(eq(products.id, row.id));
+    updated += 1;
+  }
+
+  log(`Product allergens: ${updated} converted / ${rows.length} with allergens`);
 }
 
 async function seedDemoProducts(

@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
+import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { Card } from "@/components/admin/ui";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
-import { ALLERGEN_OPTIONS, AVAILABILITY_LABELS } from "@/lib/labels";
+import { ALLERGENS, formatAllergen } from "@/lib/allergens";
+import { AVAILABILITY_LABELS } from "@/lib/labels";
 import { saveProduct } from "@/server/admin/catalog";
 import type { LibraryImage } from "@/server/queries/gallery";
 import { ProductImages } from "./ProductImages";
@@ -154,15 +156,15 @@ export function ProductForm({
 
               <Field
                 label="Пълно описание"
-                htmlFor="p-desc"
+                hint="Маркирайте текст и натиснете „B“ или Ctrl+B, за да го удебелите."
+                error={fieldErrors.description}
                 className="sm:col-span-2"
               >
-                <Textarea
-                  id="p-desc"
+                <RichTextEditor
                   name="description"
+                  label="Пълно описание"
                   defaultValue={values.description}
-                  maxLength={4000}
-                  className="min-h-32"
+                  invalid={Boolean(fieldErrors.description)}
                 />
               </Field>
 
@@ -264,14 +266,14 @@ export function ProductForm({
               <legend className="text-[0.79rem] font-extrabold text-ink-soft">
                 Алергени
               </legend>
-              <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                {ALLERGEN_OPTIONS.map((allergen) => (
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {ALLERGENS.map((allergen) => (
                   <Checkbox
-                    key={allergen}
+                    key={allergen.code}
                     name="allergens"
-                    value={allergen}
-                    defaultChecked={values.allergens.includes(allergen)}
-                    label={allergen}
+                    value={allergen.code}
+                    defaultChecked={values.allergens.includes(allergen.code)}
+                    label={formatAllergen(allergen)}
                   />
                 ))}
               </div>

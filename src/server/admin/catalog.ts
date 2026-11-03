@@ -6,6 +6,8 @@ import { z } from "zod";
 
 import { db } from "@/db/client";
 import { categories, productImages, products } from "@/db/schema";
+import { normalizeAllergens } from "@/lib/allergens";
+import { normalizeRichText, richTextToPlain } from "@/lib/rich-text";
 import { storeUploadedImage } from "@/lib/storage";
 import { uniqueSlug } from "@/lib/slug";
 import { parsePriceToCents } from "@/lib/format";
@@ -210,6 +212,8 @@ export async function reorderCategory(
  * Products
  * ------------------------------------------------------------------ */
 
+const DESCRIPTION_TOO_LONG = "Описанието е твърде дълго — до 4000 знака.";
+
 const productSchema = z.object({
   id: idSchema.optional(),
   categoryId: idSchema,
@@ -217,7 +221,16 @@ const productSchema = z.object({
   name: z.string().trim().min(2, "Името е задължително.").max(120),
   slug: z.string().trim().max(64).optional().default(""),
   shortDescription: z.string().trim().max(300).optional().default(""),
-  description: z.string().trim().max(4000).optional().default(""),
+  // The limit is on what the owner wrote; the outer one only bounds the request.
+  description: z
+    .string()
+    .max(20000, DESCRIPTION_TOO_LONG)
+    .refine(
+      (value) => richTextToPlain(value).length <= 4000,
+      DESCRIPTION_TOO_LONG,
+    )
+    .optional()
+    .default(""),
   price: z.string().trim().optional().default(""),
   portions: z.string().trim().max(60).optional().default(""),
   weightGrams: z.string().trim().optional().default(""),
@@ -301,7 +314,7 @@ export async function saveProduct(formData: FormData): Promise<ActionResult> {
       name: sanitizeText(values.name),
       slug,
       shortDescription: sanitizeText(values.shortDescription),
-      description: sanitizeText(values.description),
+      description: normalizeRichText(sanitizeText(values.description)),
       basePriceCents: values.price ? parsePriceToCents(values.price) : null,
       portions: values.portions ? sanitizeText(values.portions) : null,
       weightGrams: optionalInt(values.weightGrams),
@@ -309,7 +322,7 @@ export async function saveProduct(formData: FormData): Promise<ActionResult> {
       isFeatured: values.isFeatured,
       isCustomizable: values.isCustomizable,
       ingredients: sanitizeText(values.ingredients),
-      allergens: values.allergens.filter(Boolean),
+      allergens: normalizeAllergens(values.allergens),
       allergenNote: sanitizeText(values.allergenNote),
       shippingAllowed: values.shippingAllowed,
       pickupAllowed: values.pickupAllowed,

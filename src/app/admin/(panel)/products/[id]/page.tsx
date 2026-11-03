@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/admin/ui";
 import { ProductForm } from "../ProductForm";
 import { Badge } from "@/components/ui/primitives";
+import { normalizeAllergens } from "@/lib/allergens";
 import {
   getAdminProduct,
   listAllCategories,
@@ -82,7 +83,7 @@ export default async function EditProductPage({ params }: Params) {
           isFeatured: product.isFeatured,
           isCustomizable: product.isCustomizable,
           ingredients: product.ingredients,
-          allergens: product.allergens,
+          allergens: normalizeAllergens(product.allergens),
           allergenNote: product.allergenNote,
           shippingAllowed: product.shippingAllowed,
           pickupAllowed: product.pickupAllowed,

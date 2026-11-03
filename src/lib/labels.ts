@@ -117,14 +117,3 @@ export const WEEKDAY_SHORT: Record<number, string> = {
   6: "Съб",
   7: "Нед",
 };
-
-export const ALLERGEN_OPTIONS = [
-  "Глутен",
-  "Яйца",
-  "Мляко",
-  "Ядки",
-  "Фъстъци",
-  "Соя",
-  "Сусам",
-  "Ядки от дървесни видове",
-] as const;
