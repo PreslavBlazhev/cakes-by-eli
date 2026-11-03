@@ -6,9 +6,12 @@ import { Info, Package, Truck } from "lucide-react";
 import { ProductCard } from "@/components/site/cards";
 import { ButtonLink } from "@/components/ui/Button";
 import { Badge, Container, Label, Section } from "@/components/ui/primitives";
+import { RichText } from "@/components/ui/RichText";
+import { formatAllergen, selectedAllergens } from "@/lib/allergens";
 import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/format";
 import { AVAILABILITY_LABELS, ORDERABLE_AVAILABILITY } from "@/lib/labels";
+import { richTextToPlain } from "@/lib/rich-text";
 import {
   getPublicProductBySlug,
   listPublicProducts,
@@ -33,7 +36,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
   return {
     title: product.name,
-    description: product.shortDescription || product.description.slice(0, 160),
+    description:
+      product.shortDescription ||
+      richTextToPlain(product.description).slice(0, 160),
     alternates: { canonical: url },
     openGraph: {
       title: `${product.name} · ${settings.businessName}`,
@@ -57,6 +62,7 @@ export default async function ProductPage({ params }: Params) {
   const price = formatPrice(product.basePriceCents);
   const orderable = ORDERABLE_AVAILABILITY.includes(product.availability);
   const [lead, ...secondary] = product.images;
+  const allergens = selectedAllergens(product.allergens);
 
   return (
     <>
@@ -204,19 +210,19 @@ export default async function ProductPage({ params }: Params) {
                 {product.ingredients ? (
                   <SpecRow term="Състав" value={product.ingredients} />
                 ) : null}
-                {product.allergens.length > 0 ? (
-                  <SpecRow
-                    term="Алергени"
-                    value={
-                      <span className="flex flex-wrap gap-1.5">
-                        {product.allergens.map((allergen) => (
-                          <Badge key={allergen} tone="warning">
-                            {allergen}
-                          </Badge>
+                {allergens.length > 0 ? (
+                  <div className="border-b border-line py-4">
+                    <dt className="text-[0.94rem] font-bold text-ink">
+                      Алергени:
+                    </dt>
+                    <dd className="mt-2 text-[0.94rem] leading-relaxed text-ink-soft">
+                      <ul>
+                        {allergens.map((allergen) => (
+                          <li key={allergen.code}>{formatAllergen(allergen)}</li>
                         ))}
-                      </span>
-                    }
-                  />
+                      </ul>
+                    </dd>
+                  </div>
                 ) : null}
               </dl>
 
@@ -237,7 +243,7 @@ export default async function ProductPage({ params }: Params) {
                     За десерта
                   </Label>
                   <p className="whitespace-pre-line text-[1rem] leading-[1.75] text-ink-soft">
-                    {product.description}
+                    <RichText value={product.description} />
                   </p>
                 </div>
               ) : null}
