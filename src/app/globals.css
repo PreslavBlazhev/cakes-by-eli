@@ -59,10 +59,10 @@
 
   /* --- Typography --------------------------------------------------- */
   --font-sans:
-    var(--font-manrope), Manrope, ui-sans-serif, system-ui, -apple-system,
+    Manrope, ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", sans-serif;
   --font-display:
-    var(--font-display), "Playfair Display", Georgia, "Times New Roman", serif;
+    "Playfair Display", Georgia, "Times New Roman", serif;
 
   /* --- Radii -------------------------------------------------------- *
    * Deliberately near-square. Soft pills everywhere are what makes a

@@ -356,7 +356,7 @@ export function CakeTopView({ model }: { model: PreviewModel }) {
           textAnchor="middle"
           fill="#98867a"
           style={{
-            fontFamily: "var(--font-manrope), sans-serif",
+            fontFamily: "Manrope, sans-serif",
             fontSize: 10,
             letterSpacing: 2,
             textTransform: "uppercase",
