@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Playfair_Display } from "next/font/google";
+import { preload } from "react-dom";
 
 import { ToastProvider } from "@/components/ui/Toast";
 import { env } from "@/lib/env";
 import { getSettings } from "@/server/queries/settings";
 
+import "./fonts.css";
 import "./globals.css";
 
 /**
@@ -13,21 +14,15 @@ import "./globals.css";
  * Playfair carries the high-contrast, printed-menu register at display
  * sizes; Manrope keeps navigation, forms and body copy plain and legible
  * at small sizes. Both ship Cyrillic, which is non-negotiable here.
+ *
+ * The files every page needs straight away; the rest load when text asks.
  */
-const sans = Manrope({
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-manrope",
-  display: "swap",
-});
-
-const display = Playfair_Display({
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-display",
-  display: "swap",
-});
+const PRELOADED_FONTS = [
+  "/fonts/manrope-cyrillic.woff2",
+  "/fonts/manrope-latin.woff2",
+  "/fonts/playfair-display-cyrillic.woff2",
+  "/fonts/playfair-display-latin.woff2",
+];
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
@@ -68,8 +63,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  for (const href of PRELOADED_FONTS) {
+    preload(href, { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
+  }
+
   return (
-    <html lang="bg" className={`${sans.variable} ${display.variable}`}>
+    <html lang="bg">
       <body>
         <a
           href="#main"

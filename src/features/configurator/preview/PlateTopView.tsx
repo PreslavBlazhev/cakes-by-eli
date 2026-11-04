@@ -136,7 +136,7 @@ export function PlateTopView({ model }: { model: PreviewModel }) {
         textAnchor="middle"
         fill="#98867a"
         style={{
-          fontFamily: "var(--font-manrope), sans-serif",
+          fontFamily: "Manrope, sans-serif",
           fontSize: 11,
           letterSpacing: 2,
         }}

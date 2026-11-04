@@ -6,6 +6,21 @@ const nextConfig: NextConfig = {
   // `sharp` is already in Next's own default external list, so it needs no
   // entry here even though the upload pipeline imports it directly.
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
+  // Next hashes its own assets but not `public/`, so these need saying. The
+  // fonts never change in place: a new version would get a new file name.
+  async headers() {
+    return [
+      {
+        source: "/fonts/:file*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
   experimental: {
     // Reference images are uploaded by customers. The per-file and per-request
     // limits live in `src/lib/env.ts` (3 files × 3 MB); this stays well above
