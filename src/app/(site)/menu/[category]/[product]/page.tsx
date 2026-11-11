@@ -174,7 +174,7 @@ export default async function ProductPage({ params }: Params) {
               <dl className="mt-9 border-t border-line">
                 <SpecRow
                   term="Цена"
-                  value={price ? `от ${price}` : "След уточнение"}
+                  value={price ?? "След уточнение"}
                   emphasis
                 />
                 {product.portions ? (

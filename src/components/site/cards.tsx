@@ -181,7 +181,7 @@ export function ProductCard({
               price ? "text-ink" : "text-ink-faint",
             )}
           >
-            {price ? `от ${price}` : "Цена след уточнение"}
+            {price ?? "Цена след уточнение"}
           </span>
           {product.portions ? (
             <span className="text-ink-faint">{product.portions}</span>
