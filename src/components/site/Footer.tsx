@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CookieSettingsButton } from "@/components/site/Analytics";
 import { SocialLinks } from "@/components/site/SocialLinks";
 import { shortTime } from "@/lib/format";
 import { WEEKDAY_SHORT } from "@/lib/labels";
@@ -158,12 +159,15 @@ export function Footer({
           <p>
             © {year} {settings.businessName}. Всички права запазени.
           </p>
-          <Link
-            href="/privacy"
-            className="link-underline transition-colors hover:text-rose-dark"
-          >
-            Политика за поверителност
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
+            <CookieSettingsButton className="link-underline text-left uppercase tracking-[0.14em] transition-colors hover:text-rose-dark" />
+            <Link
+              href="/privacy"
+              className="link-underline transition-colors hover:text-rose-dark"
+            >
+              Политика за поверителност
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
