@@ -867,7 +867,7 @@ function CatalogPicker({
                 }
                 price={
                   option.basePriceCents !== null
-                    ? `от ${formatPrice(option.basePriceCents)}`
+                    ? formatPrice(option.basePriceCents)
                     : null
                 }
                 onSelect={() => onSelect(option.id)}
