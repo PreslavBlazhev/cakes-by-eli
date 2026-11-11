@@ -28,6 +28,7 @@ import {
   withDefaults,
 } from "@/features/configurator/rules";
 import type { ConfigState } from "@/features/configurator/types";
+import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 import { formatPrice, formatPriceOrPending } from "@/lib/format";
 import type { FulfillmentMethod } from "@/lib/labels";
@@ -85,6 +86,7 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
   const [draftRestored, setDraftRestored] = useState(false);
 
   const [state, formAction, pending] = useActionState(submitOrder, initialState);
+  const leadSentFor = useRef<string | null>(null);
 
   const dessert = useMemo(
     () => data.desserts.find((d) => d.id === dessertId) ?? null,
@@ -155,6 +157,20 @@ export function OrderFlow({ data }: { data: OrderFlowData }) {
       errorRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     }
   }, [state, toast]);
+
+  // The server action only answers "success" after the order is saved, so
+  // this is a confirmed lead. Sent once per order number and without any of
+  // the details the customer typed (track() also drops it without consent).
+  useEffect(() => {
+    if (state.status !== "success") return;
+    if (leadSentFor.current === state.orderNumber) return;
+    leadSentFor.current = state.orderNumber;
+    track({
+      event: "generate_lead",
+      lead_type: "order",
+      order_mode: mode ?? "unknown",
+    });
+  }, [state, mode]);
 
   const serverErrors =
     state.status === "error" ? state.fieldErrors : ({} as Record<string, string>);

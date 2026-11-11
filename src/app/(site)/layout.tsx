@@ -1,3 +1,4 @@
+import { Analytics } from "@/components/site/Analytics";
 import { Footer } from "@/components/site/Footer";
 import { Header } from "@/components/site/Header";
 import { StructuredData } from "@/components/site/StructuredData";
@@ -41,6 +42,7 @@ export default async function SiteLayout({
       />
       <main id="main">{children}</main>
       <Footer settings={settings} hours={hours} />
+      <Analytics />
     </>
   );
 }
