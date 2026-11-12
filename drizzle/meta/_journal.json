@@ -36,6 +36,13 @@
       "when": 1790697275771,
       "tag": "0004_econt_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794470400000,
+      "tag": "0005_new_shop_address",
+      "breakpoints": true
     }
   ]
 }
