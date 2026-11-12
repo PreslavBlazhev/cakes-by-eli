@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/site/PageHeader";
 import { Container, Section } from "@/components/ui/primitives";
+import { COMPANY } from "@/lib/company";
 import { getSettings } from "@/server/queries/settings";
 
 export const dynamic = "force-dynamic";
@@ -39,9 +40,9 @@ export default async function PrivacyPage() {
           <div className="max-w-[68ch] border-t border-line pt-10">
             <p className="border-l-2 border-warning bg-warning-soft px-5 py-4 text-[0.86rem] leading-relaxed text-warning">
               <strong>Бележка към собственика:</strong> текстът по-долу описва
-              коректно какви данни събира сайтът, но полетата за юридическо лице
-              (наименование, ЕИК, адрес на управление, имейл за връзка) трябва да
-              бъдат попълнени с реалните данни, преди сайтът да излезе онлайн.
+              коректно какви данни събира сайтът, но адресът на управление на
+              юридическото лице и имейлът за връзка трябва да бъдат попълнени с
+              реалните данни, преди сайтът да излезе онлайн.
               Този документ не е правен съвет.
             </p>
 
@@ -78,7 +79,10 @@ export default async function PrivacyPage() {
                   )}
                 </p>
                 <p className="mt-2">
-                  Юридическо лице и ЕИК: <em>[да бъдат попълнени]</em>
+                  Юридическо лице:{" "}
+                  <span className="text-ink">{COMPANY.legalName}</span>, ЕИК{" "}
+                  <span className="text-ink">{COMPANY.eik}</span>. Адрес на
+                  управление: <em>[да бъде попълнен]</em>
                 </p>
               </section>
 
