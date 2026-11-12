@@ -1,3 +1,4 @@
+import { COMPANY } from "@/lib/company";
 import { env } from "@/lib/env";
 import { shortTime } from "@/lib/format";
 import type { WorkingHourRow } from "@/lib/schedule";
@@ -41,6 +42,8 @@ export function StructuredData({
     "@context": "https://schema.org",
     "@type": "Bakery",
     name: settings.businessName,
+    legalName: COMPANY.legalName,
+    taxID: COMPANY.eik,
     url: env.APP_URL,
     image: `${env.APP_URL}/icon.svg`,
     currenciesAccepted: "EUR",

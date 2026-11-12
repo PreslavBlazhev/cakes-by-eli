@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Mail, MapPin } from "lucide-react";
+import { Building2, Mail, MapPin } from "lucide-react";
 
 import { PageHeader } from "@/components/site/PageHeader";
 import { SocialLinks } from "@/components/site/SocialLinks";
 import { ButtonLink, ExternalButtonLink } from "@/components/ui/Button";
 import { Badge, Container, Label, Section } from "@/components/ui/primitives";
 import { cn } from "@/lib/cn";
+import { COMPANY } from "@/lib/company";
 import { formatDate, shortTime } from "@/lib/format";
 import { WEEKDAY_LABELS } from "@/lib/labels";
 import { todayStatusSentence } from "@/lib/schedule";
@@ -147,6 +148,21 @@ export default async function ContactsPage() {
                       </dd>
                     </div>
                   ) : null}
+                  <div className="flex items-start gap-3 border-b border-line py-4">
+                    <dt className="flex-none pt-0.5">
+                      <Building2
+                        size={16}
+                        aria-hidden="true"
+                        className="text-rose-dark"
+                      />
+                      <span className="sr-only">Търговец</span>
+                    </dt>
+                    <dd className="text-[0.98rem] leading-relaxed text-ink-soft">
+                      {COMPANY.legalName}
+                      <br />
+                      ЕИК {COMPANY.eik}
+                    </dd>
+                  </div>
                 </dl>
               </div>
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CookieSettingsButton } from "@/components/site/Analytics";
 import { SocialLinks } from "@/components/site/SocialLinks";
+import { COMPANY_LINE } from "@/lib/company";
 import { shortTime } from "@/lib/format";
 import { WEEKDAY_SHORT } from "@/lib/labels";
 import type { WorkingHourRow } from "@/lib/schedule";
@@ -156,9 +157,12 @@ export function Footer({
         </div>
 
         <div className="mt-16 flex flex-col gap-3 border-t border-line pt-6 text-[0.72rem] uppercase tracking-[0.14em] text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            © {year} {settings.businessName}. Всички права запазени.
-          </p>
+          <div className="space-y-1">
+            <p>
+              © {year} {settings.businessName}. Всички права запазени.
+            </p>
+            <p>{COMPANY_LINE}</p>
+          </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:gap-6">
             <CookieSettingsButton className="link-underline text-left uppercase tracking-[0.14em] transition-colors hover:text-rose-dark" />
             <Link

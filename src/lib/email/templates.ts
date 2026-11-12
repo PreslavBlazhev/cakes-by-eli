@@ -1,3 +1,4 @@
+import { COMPANY_LINE } from "@/lib/company";
 import { formatDate, formatPriceOrPending } from "@/lib/format";
 import {
   FULFILLMENT_LABELS,
@@ -212,6 +213,9 @@ ${section("Вашата конфигурация", configurationRows(data.snapsh
   <p style="margin:16px 0 0;font-size:13px;color:#9c8a82;line-height:1.6;">
     Ако нещо в обобщението не е точно, просто отговорете на този имейл.
   </p>
+  <p style="margin:16px 0 0;font-size:12px;color:#9c8a82;line-height:1.6;">
+    ${escapeHtml(data.businessName)} · ${escapeHtml(COMPANY_LINE)}
+  </p>
 </td></tr>
 ${WRAP_CLOSE}`;
 
@@ -233,6 +237,7 @@ ${WRAP_CLOSE}`;
     data.disclaimer,
     "",
     data.businessName,
+    COMPANY_LINE,
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -287,7 +292,7 @@ ${
     ? `<tr><td style="padding:18px 30px 0;"><div style="background:#f8ecec;border-radius:14px;padding:15px 18px;font-size:13px;color:#743d4a;line-height:1.55;">${escapeHtml(data.note)}</div></td></tr>`
     : ""
 }
-<tr><td style="padding:24px 30px 30px;font-size:13px;color:#9c8a82;">${escapeHtml(data.businessName)}</td></tr>
+<tr><td style="padding:24px 30px 30px;font-size:13px;color:#9c8a82;">${escapeHtml(data.businessName)}<br><span style="font-size:12px;">${escapeHtml(COMPANY_LINE)}</span></td></tr>
 ${WRAP_CLOSE}`;
 
   const text = [
@@ -300,6 +305,7 @@ ${WRAP_CLOSE}`;
     data.note ? `\n${data.note}` : null,
     "",
     data.businessName,
+    COMPANY_LINE,
   ]
     .filter((line) => line !== null)
     .join("\n");
