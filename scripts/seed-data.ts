@@ -74,9 +74,10 @@ export const BUSINESS = {
   tagline: "handcrafted sweets",
   phone: "087 857 6728",
   email: "",
-  addressLine: "пл. „Възраждане“ 1",
+  addressLine: "ул. „К. Величков“ 8",
   city: "Плевен",
-  mapsUrl: "https://maps.app.goo.gl/Qd1FjDnqqx7nTuVq6",
+  mapsUrl:
+    "https://www.google.com/maps/search/?api=1&query=%D1%83%D0%BB.%20%D0%9A.%20%D0%92%D0%B5%D0%BB%D0%B8%D1%87%D0%BA%D0%BE%D0%B2%208%2C%20%D0%9F%D0%BB%D0%B5%D0%B2%D0%B5%D0%BD",
   facebookUrl: "https://www.facebook.com/chokolateatelieEli/",
   instagramUrl: "https://www.instagram.com/cakes_byeli_/",
 
