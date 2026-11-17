@@ -8,6 +8,7 @@
 export const COMPANY = {
   legalName: "ПРО АУДИО РКД ООД",
   eik: "206330964",
+  registeredAddress: "гр. Плевен, ул. „К. Величков“ № 8",
 } as const;
 
 /** "ПРО АУДИО РКД ООД · ЕИК 206330964" */
