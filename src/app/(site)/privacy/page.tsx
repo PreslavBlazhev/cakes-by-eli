@@ -38,15 +38,7 @@ export default async function PrivacyPage() {
       <Section tone="cream" size="sm" className="pt-0">
         <Container>
           <div className="max-w-[68ch] border-t border-line pt-10">
-            <p className="border-l-2 border-warning bg-warning-soft px-5 py-4 text-[0.86rem] leading-relaxed text-warning">
-              <strong>Бележка към собственика:</strong> текстът по-долу описва
-              коректно какви данни събира сайтът, но адресът на управление на
-              юридическото лице и имейлът за връзка трябва да бъдат попълнени с
-              реалните данни, преди сайтът да излезе онлайн.
-              Този документ не е правен съвет.
-            </p>
-
-            <div className="mt-8 space-y-8 text-[0.97rem] leading-relaxed text-ink-soft [&_h2]:text-ink [&_li]:text-ink-soft">
+            <div className="space-y-8 text-[0.97rem] leading-relaxed text-ink-soft [&_h2]:text-ink [&_li]:text-ink-soft">
               <section>
                 <h2 className="display-3">1. Кой обработва данните ви</h2>
                 <p className="mt-3">
@@ -82,7 +74,8 @@ export default async function PrivacyPage() {
                   Юридическо лице:{" "}
                   <span className="text-ink">{COMPANY.legalName}</span>, ЕИК{" "}
                   <span className="text-ink">{COMPANY.eik}</span>. Адрес на
-                  управление: <em>[да бъде попълнен]</em>
+                  управление:{" "}
+                  <span className="text-ink">{COMPANY.registeredAddress}</span>.
                 </p>
               </section>
 
