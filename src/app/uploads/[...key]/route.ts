@@ -22,7 +22,16 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  return new Response(new Uint8Array(file.bytes), {
+  // A view over the bytes already read, not `new Uint8Array(buffer)` — that
+  // form copies, doubling every photo in memory for the life of the request.
+  // `fs.readFile` always allocates a plain ArrayBuffer, never a shared one.
+  const body = new Uint8Array(
+    file.bytes.buffer as ArrayBuffer,
+    file.bytes.byteOffset,
+    file.bytes.byteLength,
+  );
+
+  return new Response(body, {
     headers: {
       "Content-Type": file.mimeType,
       "Content-Length": String(file.bytes.byteLength),
