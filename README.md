@@ -481,6 +481,14 @@ disk:        public/uploads   (за качените снимки)
 
 Деплоят е напълно автоматичен — нищо не се пуска ръчно от Render Shell.
 
+**Памет (план 512 MB).** `npm start` пуска `scripts/start.mjs`, който в Linux
+стартира `next start` със `MALLOC_ARENA_MAX=2` и `UV_THREADPOOL_SIZE=2` (същият
+процес, чрез `process.execve`). Без тях оптимизаторът на снимки (sharp/libvips)
+трупа native памет в десетки glibc арени и процесът беше убиван при 512 MB, при
+JS heap от едва ~60 MB. Стойност, зададена в средата на Render, има предимство.
+Не сменяйте start командата на голо `next start`, без да зададете двете
+променливи в средата.
+
 Миграциите са в **build** командата, защото `next build` чете от базата през
 `generateMetadata()`; без тях билдът пада с `relation "site_settings" does not
 exist`.

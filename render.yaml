@@ -38,6 +38,10 @@ services:
     # this service is capped at 512. Without a ceiling V8 never feels pressure
     # and the cgroup killer arrives first, with no stack trace; with one, V8
     # collects in time and genuine heap exhaustion is reported as such.
+    #
+    # The native-memory settings (MALLOC_ARENA_MAX, UV_THREADPOOL_SIZE) are not
+    # here: `npm start` runs scripts/start.mjs, which applies them itself, so a
+    # plain `npm start` typed into the dashboard gets them too.
     startCommand: NODE_OPTIONS=--max-old-space-size=350 npm start
 
     # Inert liveness probe. `/contacts` is force-dynamic and cost ~7 queries
