@@ -9,7 +9,7 @@ import { Badge, Container, Label, Section } from "@/components/ui/primitives";
 import { RichText } from "@/components/ui/RichText";
 import { formatAllergen, selectedAllergens } from "@/lib/allergens";
 import { cn } from "@/lib/cn";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, formatWeightGrams } from "@/lib/format";
 import { AVAILABILITY_LABELS, ORDERABLE_AVAILABILITY } from "@/lib/labels";
 import { richTextToPlain } from "@/lib/rich-text";
 import {
@@ -60,6 +60,7 @@ export default async function ProductPage({ params }: Params) {
   ).filter((p) => p.id !== product.id);
 
   const price = formatPrice(product.basePriceCents);
+  const weight = formatWeightGrams(product.weightGrams);
   const orderable = ORDERABLE_AVAILABILITY.includes(product.availability);
   const [lead, ...secondary] = product.images;
   const allergens = selectedAllergens(product.allergens);
@@ -180,6 +181,7 @@ export default async function ProductPage({ params }: Params) {
                 {product.portions ? (
                   <SpecRow term="Порции" value={product.portions} />
                 ) : null}
+                {weight ? <SpecRow term="Грамаж" value={weight} /> : null}
                 <SpecRow
                   term="Получаване"
                   value={

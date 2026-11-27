@@ -31,6 +31,20 @@ export function parsePriceToCents(input: string): number | null {
 }
 
 /* ------------------------------------------------------------------ *
+ * Product weight — `products.weightGrams`, entered in the admin form.
+ * ------------------------------------------------------------------ */
+
+/** "90 г" for a positive weight; null when empty, zero or invalid. */
+export function formatWeightGrams(grams: number | null | undefined): string | null {
+  if (grams === null || grams === undefined || !Number.isFinite(grams)) {
+    return null;
+  }
+  const rounded = Math.round(grams);
+  if (rounded <= 0) return null;
+  return `${rounded.toLocaleString("bg-BG")} г`;
+}
+
+/* ------------------------------------------------------------------ *
  * Dates — always presented in Europe/Sofia regardless of server locale.
  * ------------------------------------------------------------------ */
 
