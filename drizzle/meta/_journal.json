@@ -43,6 +43,13 @@
       "when": 1794470400000,
       "tag": "0005_new_shop_address",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795859118780,
+      "tag": "0006_shop_address_vazrazhdane",
+      "breakpoints": true
     }
   ]
 }
