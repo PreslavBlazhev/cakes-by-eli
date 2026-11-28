@@ -9,9 +9,9 @@ import {
 } from "@/lib/allergens";
 
 describe("allergen list", () => {
-  it("is the fourteen positions, numbered without gaps", () => {
+  it("is the fourteen EU positions plus food colourings, numbered without gaps", () => {
     expect(ALLERGENS.map((allergen) => allergen.number)).toEqual(
-      Array.from({ length: 14 }, (_, index) => index + 1),
+      Array.from({ length: 15 }, (_, index) => index + 1),
     );
     expect(ALLERGENS.map(formatAllergen)).toEqual([
       "1. Зърнени култури, съдържащи глутен",
@@ -28,6 +28,7 @@ describe("allergen list", () => {
       "12. Серен диоксид и сулфити",
       "13. Лупина и продукти от нея",
       "14. Мекотели и продукти от тях",
+      "15. Хранителни оцветители одобрени за употреба в ЕС",
     ]);
   });
 

@@ -55,6 +55,12 @@ export const ALLERGENS = [
     label: "Мекотели и продукти от тях",
     legacy: [],
   },
+  {
+    code: "food_colourings",
+    number: 15,
+    label: "Хранителни оцветители одобрени за употреба в ЕС",
+    legacy: [],
+  },
 ] as const;
 
 export type Allergen = (typeof ALLERGENS)[number];
